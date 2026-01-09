@@ -30,7 +30,7 @@ const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 @export var tracer_color := Color(1.0, 0.9, 0.6, 0.8)
 @export var tracer_muzzle_offset := 0.1
 @export var show_tracers := true
-@export var show_own_body := true
+@export var show_own_body := false
 @export var character_skin_scale := 1.0
 @export var weapon_skin_scale := 1.0
 
@@ -232,6 +232,8 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 	)
 	query.exclude = [self]
 	query.collision_mask = HIT_MASK
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
 
 	var result: Dictionary = space.intersect_ray(query)
 	var end_pos: Vector3 = origin + direction * max_distance
@@ -432,6 +434,8 @@ func _predict_tracer_end(origin: Vector3, direction: Vector3) -> Vector3:
 	)
 	query.exclude = [self]
 	query.collision_mask = HIT_MASK
+	query.collide_with_areas = true
+	query.collide_with_bodies = true
 	var result: Dictionary = space.intersect_ray(query)
 	if result.is_empty():
 		return origin + direction * max_distance

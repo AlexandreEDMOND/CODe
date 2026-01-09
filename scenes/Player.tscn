@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource path="res://scripts/Player.gd" type="Script" id=1]
+[ext_resource path="res://scripts/Hitbox.gd" type="Script" id=2]
 
 [sub_resource type="CapsuleShape3D" id=1]
 radius = 0.4
-height = 1.6
+height = 1.2
 
 [sub_resource type="CapsuleMesh" id=2]
 radius = 0.4
@@ -17,6 +18,9 @@ size = Vector3(0.35, 0.18, 0.8)
 albedo_color = Color(0.12, 0.12, 0.12, 1.0)
 roughness = 0.6
 
+[sub_resource type="SphereShape3D" id=5]
+radius = 0.25
+
 [node name="Player" type="CharacterBody3D"]
 script = ExtResource(1)
 collision_layer = 2
@@ -24,12 +28,24 @@ collision_mask = 7
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 shape = SubResource(1)
+position = Vector3(0, 0.6, 0)
 
 [node name="Mesh" type="MeshInstance3D" parent="."]
 mesh = SubResource(2)
 
 [node name="Body" type="Node3D" parent="."]
-position = Vector3(0, -0.8, 0)
+position = Vector3(0, 0, 0)
+
+[node name="HeadHitbox" type="Area3D" parent="."]
+position = Vector3(0, 1.5, 0)
+collision_layer = 2
+collision_mask = 0
+script = ExtResource(2)
+instant_kill = true
+owner_path = NodePath("..")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="HeadHitbox"]
+shape = SubResource(5)
 
 [node name="Head" type="Node3D" parent="."]
 position = Vector3(0, 1.5, 0)

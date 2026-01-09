@@ -37,7 +37,7 @@ Au premier lancement, un import des assets est fait automatiquement pour eviter 
 ## Structure
 - `scenes/Main.tscn`: gestion reseau + spawns
 - `scripts/Player.gd`: mouvement FPS + tir realiste (recul, dispersion, falloff)
-- `scripts/Bot.gd`: bots simples (errance)
+- `scripts/Bot.gd`: bots statiques (cibles)
 - `scenes/Map.tscn`: petite map statique
 
 ## Hyperparametres (a tester/modifier)
@@ -60,7 +60,11 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 ## ToDo (Enlever le texte quand elle sont implémentées) :
 
 Gameplay :
-- La hit box d'un joueur ou d'un bot doit etre en 2 parties, soit on touche la tete du skin et il meurt instatanement, soit on touche le corps et il prends des dégats normal. Actuellement, je peux tirer sur le skin mais c'est pas une hit box donc pas de dégats
+
+- Revoir le système de tirs, pour savoir comment la balle se deplace et où elle arrive : On a bien une animation visuelle qui doit partir du canon, 
+
+-
+
 - Impact ball sur le mur qui disparaisse avec le temps
 - Pouvoir viser avec le clic droit. En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux. On voit a travers le viseur de l'arme
 - Ajouter un peu de dispertion quand on tire sans viser et avoir une precision parfaite quand on vise
