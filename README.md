@@ -46,3 +46,5 @@ Gameplay :
 
 Design :
 - Voir pour trouver des skin de perso et d'armes, avec des décors 
+- Trouver un skin d'une personne
+- Trouver un skin d'une arme
