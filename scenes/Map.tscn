@@ -1,0 +1,165 @@
+[gd_scene load_steps=18 format=3]
+
+[sub_resource type="BoxShape3D" id=1]
+size = Vector3(40, 1, 40)
+
+[sub_resource type="BoxMesh" id=2]
+size = Vector3(40, 1, 40)
+
+[sub_resource type="BoxShape3D" id=3]
+size = Vector3(40, 3, 1)
+
+[sub_resource type="BoxMesh" id=4]
+size = Vector3(40, 3, 1)
+
+[sub_resource type="BoxShape3D" id=5]
+size = Vector3(1, 3, 40)
+
+[sub_resource type="BoxMesh" id=6]
+size = Vector3(1, 3, 40)
+
+[sub_resource type="BoxShape3D" id=7]
+size = Vector3(4, 2, 4)
+
+[sub_resource type="BoxMesh" id=8]
+size = Vector3(4, 2, 4)
+
+[sub_resource type="BoxShape3D" id=9]
+size = Vector3(2, 3, 6)
+
+[sub_resource type="BoxMesh" id=10]
+size = Vector3(2, 3, 6)
+
+[sub_resource type="BoxShape3D" id=11]
+size = Vector3(6, 2, 2)
+
+[sub_resource type="BoxMesh" id=12]
+size = Vector3(6, 2, 2)
+
+[sub_resource type="StandardMaterial3D" id=13]
+albedo_color = Color(0.18, 0.19, 0.2, 1.0)
+roughness = 0.85
+
+[sub_resource type="StandardMaterial3D" id=14]
+albedo_color = Color(0.72, 0.72, 0.68, 1.0)
+roughness = 0.75
+
+[sub_resource type="StandardMaterial3D" id=15]
+albedo_color = Color(0.85, 0.35, 0.3, 1.0)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id=16]
+albedo_color = Color(0.2, 0.55, 0.9, 1.0)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id=17]
+albedo_color = Color(0.3, 0.8, 0.45, 1.0)
+roughness = 0.7
+
+[node name="Map" type="Node3D"]
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.9, -0.8, 0.0)
+light_energy = 1.1
+shadow_enabled = true
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 6, 0)
+light_energy = 0.6
+omni_range = 35.0
+
+[node name="Floor" type="StaticBody3D" parent="."]
+position = Vector3(0, -0.5, 0)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+shape = SubResource(1)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource(2)
+material_override = SubResource(13)
+
+[node name="WallNorth" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.5, -20)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WallNorth"]
+shape = SubResource(3)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WallNorth"]
+mesh = SubResource(4)
+material_override = SubResource(14)
+
+[node name="WallSouth" type="StaticBody3D" parent="."]
+position = Vector3(0, 1.5, 20)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WallSouth"]
+shape = SubResource(3)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WallSouth"]
+mesh = SubResource(4)
+material_override = SubResource(14)
+
+[node name="WallEast" type="StaticBody3D" parent="."]
+position = Vector3(20, 1.5, 0)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WallEast"]
+shape = SubResource(5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WallEast"]
+mesh = SubResource(6)
+material_override = SubResource(14)
+
+[node name="WallWest" type="StaticBody3D" parent="."]
+position = Vector3(-20, 1.5, 0)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="WallWest"]
+shape = SubResource(5)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WallWest"]
+mesh = SubResource(6)
+material_override = SubResource(14)
+
+[node name="ObstacleA" type="StaticBody3D" parent="."]
+position = Vector3(6, 1, 6)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ObstacleA"]
+shape = SubResource(7)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ObstacleA"]
+mesh = SubResource(8)
+material_override = SubResource(15)
+
+[node name="ObstacleB" type="StaticBody3D" parent="."]
+position = Vector3(-8, 1.5, -6)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ObstacleB"]
+shape = SubResource(9)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ObstacleB"]
+mesh = SubResource(10)
+material_override = SubResource(16)
+
+[node name="ObstacleC" type="StaticBody3D" parent="."]
+position = Vector3(0, 1, -10)
+collision_layer = 1
+collision_mask = 7
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="ObstacleC"]
+shape = SubResource(11)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="ObstacleC"]
+mesh = SubResource(12)
+material_override = SubResource(17)
