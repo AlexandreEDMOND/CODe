@@ -8,6 +8,7 @@ const LAYER_BOTS := 4
 const HIT_MASK := LAYER_WORLD | LAYER_PLAYERS | LAYER_BOTS
 const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
 const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
+const TRACER_SCENE := preload("res://scenes/Tracer.tscn")
 
 @export var move_speed := 5.0
 @export var sprint_speed := 7.5
@@ -26,7 +27,10 @@ const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 @export var falloff_end := 80.0
 @export var max_health := 100
 @export var tracer_time := 0.08
+@export var tracer_speed := 140.0
 @export var tracer_width := 0.04
+@export var tracer_segment_length := 2.0
+@export var tracer_every_n := 1
 @export var tracer_color := Color(1.0, 0.9, 0.6, 0.8)
 @export var tracer_muzzle_offset := 0.1
 @export var show_tracers := true
@@ -61,6 +65,7 @@ var character_skin_seed: int = 0
 var weapon_skin_seed: int = 0
 var body_skin_loaded: bool = false
 var weapon_skin_loaded: bool = false
+var shots_fired_count: int = 0
 
 func _ready() -> void:
 	rng.randomize()
@@ -191,13 +196,16 @@ func _handle_fire(delta: float) -> void:
 	else:
 		fire_dir = fire_dir.normalized()
 
+	var spawn_tracer: bool = _should_spawn_tracer()
 	if multiplayer.is_server():
 		var end_pos: Vector3 = _do_fire(muzzle_origin, fire_dir, multiplayer.get_unique_id())
-		_spawn_tracer_local(muzzle_origin, end_pos)
-		_broadcast_tracer(muzzle_origin, end_pos, multiplayer.get_unique_id())
+		if spawn_tracer:
+			_spawn_tracer_local(muzzle_origin, end_pos)
+			_broadcast_tracer(muzzle_origin, end_pos, multiplayer.get_unique_id())
 	else:
 		var end_pos: Vector3 = _predict_tracer_end(muzzle_origin, fire_dir)
-		_spawn_tracer_local(muzzle_origin, end_pos)
+		if spawn_tracer:
+			_spawn_tracer_local(muzzle_origin, end_pos)
 		rpc_id(1, "server_fire", muzzle_origin, fire_dir)
 
 func _apply_recoil_kick() -> void:
@@ -222,7 +230,8 @@ func server_fire(origin: Vector3, direction: Vector3) -> void:
 		return
 	var shooter_id: int = multiplayer.get_remote_sender_id()
 	var end_pos: Vector3 = _do_fire(origin, direction, shooter_id)
-	_broadcast_tracer(origin, end_pos, shooter_id)
+	if _should_spawn_tracer():
+		_broadcast_tracer(origin, end_pos, shooter_id)
 
 func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
@@ -426,6 +435,14 @@ func _show_hit_marker() -> void:
 	if hit_marker_token == token:
 		hit_marker.visible = false
 
+func _should_spawn_tracer() -> bool:
+	if not show_tracers:
+		return false
+	shots_fired_count += 1
+	if tracer_every_n <= 1:
+		return true
+	return (shots_fired_count % tracer_every_n) == 0
+
 func _predict_tracer_end(origin: Vector3, direction: Vector3) -> Vector3:
 	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
 	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
@@ -474,36 +491,15 @@ func _spawn_tracer(start_pos: Vector3, end_pos: Vector3) -> void:
 	var root: Node = get_tree().current_scene
 	if root == null:
 		return
-	var dir: Vector3 = end_pos - start_pos
-	var length: float = dir.length()
-	if length <= 0.01:
-		return
-	var mid: Vector3 = start_pos + dir * 0.5
-	var up: Vector3 = Vector3.UP
-	var dir_norm: Vector3 = dir.normalized()
-	if abs(dir_norm.dot(up)) > 0.98:
-		up = Vector3.FORWARD
-
-	var mesh: BoxMesh = BoxMesh.new()
-	mesh.size = Vector3(tracer_width, tracer_width, length)
-
-	var material: StandardMaterial3D = StandardMaterial3D.new()
-	material.albedo_color = tracer_color
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.emission = tracer_color
-	material.emission_energy_multiplier = 1.3
-
-	var inst: MeshInstance3D = MeshInstance3D.new()
-	inst.mesh = mesh
-	inst.material_override = material
-	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	inst.global_transform = Transform3D(Basis().looking_at(dir_norm, up), mid)
-
-	root.add_child(inst)
-	await get_tree().create_timer(tracer_time).timeout
-	if is_instance_valid(inst):
-		inst.queue_free()
+	var tracer := TRACER_SCENE.instantiate()
+	tracer.start_pos = start_pos
+	tracer.end_pos = end_pos
+	tracer.speed = tracer_speed
+	tracer.width = tracer_width
+	tracer.color = tracer_color
+	tracer.segment_length = tracer_segment_length
+	tracer.max_time = tracer_time
+	root.add_child(tracer)
 
 func _send_state() -> void:
 	var pitch: float = head.rotation.x

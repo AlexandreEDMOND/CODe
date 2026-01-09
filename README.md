@@ -53,7 +53,7 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 - `base_damage`, `min_damage`: degats min/max
 - `falloff_start`, `falloff_end`: debut/fin du damage falloff
 - `max_health`: points de vie
-- `tracer_time`, `tracer_width`, `tracer_color`, `tracer_muzzle_offset`, `show_tracers`: visibilite/forme des traceurs
+- `tracer_time`, `tracer_speed`, `tracer_width`, `tracer_segment_length`, `tracer_every_n`, `tracer_color`, `tracer_muzzle_offset`, `show_tracers`: visibilite/forme des traceurs
 - `show_own_body`: afficher votre propre skin en vue FPS
 - `character_skin_scale`, `weapon_skin_scale`: taille des skins perso/arme
 
@@ -61,9 +61,8 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-- Revoir le système de tirs, pour savoir comment la balle se deplace et où elle arrive : On a bien une animation visuelle qui doit partir du canon, 
 
--
+- Revoir la hitbox : Il faut que la hitbox corresponde exactement au skin. la tête doit faire mourir immédiatement. Ajoute aussi un message en haut à gauche quand un joueur tue un autre joueur/bot
 
 - Impact ball sur le mur qui disparaisse avec le temps
 - Pouvoir viser avec le clic droit. En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux. On voit a travers le viseur de l'arme
