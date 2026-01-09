@@ -20,3 +20,6 @@ shape = SubResource(1)
 
 [node name="Mesh" type="MeshInstance3D" parent="."]
 mesh = SubResource(2)
+
+[node name="Body" type="Node3D" parent="."]
+position = Vector3(0, -0.8, 0)

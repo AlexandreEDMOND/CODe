@@ -10,6 +10,10 @@ if "%GODOT_EXE%"=="" (
   )
 )
 
+if not exist ".godot\imported" (
+  "%GODOT_EXE%" --path . --import
+)
+
 if "%1"=="" (
   set MODE=host
 ) else (

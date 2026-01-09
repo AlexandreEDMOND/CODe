@@ -20,6 +20,8 @@ chmod +x run.sh
 ./run.sh join 192.168.0.10
 ```
 
+Au premier lancement, un import des assets est fait automatiquement pour eviter les erreurs de textures.
+
 ## Notes reseau
 - Pour vos amis sur le LAN, partagez votre IP locale (ex: `192.168.x.x`), pas `localhost`.
 - Port par defaut: `7777` (modifiable via `--port=7777` si besoin).
@@ -52,19 +54,23 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 - `falloff_start`, `falloff_end`: debut/fin du damage falloff
 - `max_health`: points de vie
 - `tracer_time`, `tracer_width`, `tracer_color`, `tracer_muzzle_offset`, `show_tracers`: visibilite/forme des traceurs
+- `show_own_body`: afficher votre propre skin en vue FPS
+- `character_skin_scale`, `weapon_skin_scale`: taille des skins perso/arme
 
 ## ToDo (Enlever le texte quand elle sont implémentées) :
 
 Gameplay :
-- Pouvoir viser avec le clic droit
-- Mort instantané quand la balle touche la tête
+- La hit box d'un joueur ou d'un bot doit etre en 2 parties, soit on touche la tete du skin et il meurt instatanement, soit on touche le corps et il prends des dégats normal. Actuellement, je peux tirer sur le skin mais c'est pas une hit box donc pas de dégats
+- Impact ball sur le mur qui disparaisse avec le temps
+- Pouvoir viser avec le clic droit. En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux. On voit a travers le viseur de l'arme
 - Ajouter un peu de dispertion quand on tire sans viser et avoir une precision parfaite quand on vise
 - Viser tous fait ralentir 
 - Le viseur doit etre 
-- Avoir du recul avec l'arme, comme dans CS-GO, on ne bouge pas, mais le viseur monte un peu et va legerement a gauche ou a droite aléatoirement
-- Impact ball sur le mur qui disparaisse avec le temps
+- Avoir du recul avec l'arme, comme dans CS-GO, on ne bouge pas, mais la camera monte un peu et va legerement a gauche ou a droite aléatoirement. 
+- Quand on fait option, un menu s'ouvre et on peut changer son skin.
+- Ajouter 2 autres armes, on peut changer d'areme en appuyant sur la touche E
 
 Design :
-- En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux
-- Trouver un skin d'une personne
-- Trouver un skin d'une arme
+- Animation fluide quand on passe en mode viseur et quand on le quitte
+- Arme qui bouge quand on avance
+- Camera qui bouge quand on avance

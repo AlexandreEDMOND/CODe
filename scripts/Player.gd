@@ -6,6 +6,8 @@ const LAYER_WORLD := 1
 const LAYER_PLAYERS := 2
 const LAYER_BOTS := 4
 const HIT_MASK := LAYER_WORLD | LAYER_PLAYERS | LAYER_BOTS
+const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
+const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 
 @export var move_speed := 5.0
 @export var sprint_speed := 7.5
@@ -28,10 +30,14 @@ const HIT_MASK := LAYER_WORLD | LAYER_PLAYERS | LAYER_BOTS
 @export var tracer_color := Color(1.0, 0.9, 0.6, 0.8)
 @export var tracer_muzzle_offset := 0.1
 @export var show_tracers := true
+@export var show_own_body := true
+@export var character_skin_scale := 1.0
+@export var weapon_skin_scale := 1.0
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var mesh: MeshInstance3D = $Mesh
+@onready var body: Node3D = $Body
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var look_yaw: float = 0.0
@@ -50,6 +56,11 @@ var weapon: Node3D = null
 var muzzle: Node3D = null
 var hit_marker: Label = null
 var hit_marker_token: int = 0
+var spawn_index: int = 0
+var character_skin_seed: int = 0
+var weapon_skin_seed: int = 0
+var body_skin_loaded: bool = false
+var weapon_skin_loaded: bool = false
 
 func _ready() -> void:
 	rng.randomize()
@@ -61,6 +72,11 @@ func _ready() -> void:
 	weapon = get_node_or_null("Head/Camera3D/Weapon") as Node3D
 	muzzle = get_node_or_null("Head/Camera3D/Weapon/Muzzle") as Node3D
 	hit_marker = get_node_or_null("/root/Main/HUD/HitMarker") as Label
+	if character_skin_seed == 0:
+		character_skin_seed = get_multiplayer_authority()
+	if weapon_skin_seed == 0:
+		weapon_skin_seed = get_multiplayer_authority()
+	_apply_skins()
 
 	if is_multiplayer_authority():
 		camera.current = true
@@ -75,6 +91,10 @@ func _ready() -> void:
 		camera.current = false
 		if weapon:
 			weapon.visible = false
+	if body:
+		body.visible = (not is_multiplayer_authority()) or show_own_body
+	if body_skin_loaded:
+		mesh.visible = false
 
 func _input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
@@ -274,7 +294,9 @@ func client_hit_confirm() -> void:
 @rpc("any_peer", "reliable", "call_local")
 func set_dead(value: bool) -> void:
 	dead = value
-	mesh.visible = (not value) and (not is_multiplayer_authority())
+	mesh.visible = (not value) and (not is_multiplayer_authority()) and (not body_skin_loaded)
+	if body:
+		body.visible = (not value) and (show_own_body or (not is_multiplayer_authority()))
 	if weapon:
 		weapon.visible = (not value) and is_multiplayer_authority()
 	collision_layer = 0 if value else default_collision_layer
@@ -288,7 +310,9 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 	velocity = Vector3.ZERO
 	dead = false
 	health = new_health
-	mesh.visible = not is_multiplayer_authority()
+	mesh.visible = (not is_multiplayer_authority()) and (not body_skin_loaded)
+	if body:
+		body.visible = show_own_body or (not is_multiplayer_authority())
 	if weapon:
 		weapon.visible = is_multiplayer_authority()
 	collision_layer = default_collision_layer
@@ -305,6 +329,88 @@ func _set_local_health(value: int) -> void:
 	var label: Label = get_node_or_null("/root/Main/HUD/HealthLabel") as Label
 	if label:
 		label.text = "HP: %d" % value
+
+func _apply_skins() -> void:
+	_apply_character_skin()
+	_apply_weapon_skin()
+
+func _apply_character_skin() -> void:
+	if body == null:
+		return
+	var skin_path: String = _pick_skin_path(CHARACTER_SKIN_DIR, "character-", character_skin_seed)
+	var skin_node: Node3D = _instantiate_skin(skin_path)
+	if skin_node == null:
+		return
+	body.add_child(skin_node)
+	skin_node.scale = Vector3.ONE * character_skin_scale
+	body_skin_loaded = true
+
+func _apply_weapon_skin() -> void:
+	if weapon == null:
+		return
+	var skin_path: String = _pick_skin_path(WEAPON_SKIN_DIR, "blaster-", weapon_skin_seed)
+	var skin_node: Node3D = _instantiate_skin(skin_path)
+	if skin_node == null:
+		return
+	if weapon is MeshInstance3D:
+		var weapon_mesh := weapon as MeshInstance3D
+		weapon_mesh.mesh = null
+	weapon.add_child(skin_node)
+	skin_node.scale = Vector3.ONE * weapon_skin_scale
+	weapon_skin_loaded = true
+
+func _pick_skin_path(dir_path: String, prefix: String, seed: int) -> String:
+	var files: Array[String] = _list_glb_files(dir_path, prefix)
+	if files.is_empty():
+		return ""
+	var index: int = int(abs(seed)) % files.size()
+	return files[index]
+
+func _list_glb_files(dir_path: String, prefix: String) -> Array[String]:
+	var files: Array[String] = []
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return files
+	dir.list_dir_begin()
+	var file := dir.get_next()
+	while file != "":
+		if not dir.current_is_dir():
+			var lower := file.to_lower()
+			if lower.ends_with(".glb") and (prefix == "" or file.begins_with(prefix)):
+				files.append(dir_path + "/" + file)
+		file = dir.get_next()
+	dir.list_dir_end()
+	files.sort()
+	return files
+
+func _instantiate_skin(path: String) -> Node3D:
+	if path == "":
+		return null
+	var ext: String = path.get_extension().to_lower()
+	if ext == "glb" or ext == "gltf":
+		return _load_gltf_scene(path)
+	var res := load(path)
+	if res is PackedScene:
+		var node := (res as PackedScene).instantiate()
+		if node is Node3D:
+			return node
+		return null
+	if res is Mesh:
+		var mesh_instance := MeshInstance3D.new()
+		mesh_instance.mesh = res as Mesh
+		return mesh_instance
+	return null
+
+func _load_gltf_scene(path: String) -> Node3D:
+	var doc := GLTFDocument.new()
+	var state := GLTFState.new()
+	var err := doc.append_from_file(path, state)
+	if err != OK:
+		return null
+	var scene := doc.generate_scene(state)
+	if scene is Node3D:
+		return scene
+	return null
 
 func _show_hit_marker() -> void:
 	if hit_marker == null:
