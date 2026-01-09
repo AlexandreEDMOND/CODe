@@ -13,19 +13,20 @@ const HIT_MASK := LAYER_WORLD | LAYER_PLAYERS | LAYER_BOTS
 @export var mouse_sensitivity := 0.0025
 @export var max_pitch := 1.4
 @export var fire_rate := 10.0
-@export var spread_degrees := 1.2
-@export var recoil_kick_pitch := 1.2
-@export var recoil_kick_yaw := 0.8
-@export var recoil_return_speed := 18.0
+@export var spread_degrees := 0.0
+@export var recoil_kick_pitch := 2.2
+@export var recoil_kick_yaw := 0.9
+@export var recoil_return_speed := 10.0
 @export var max_distance := 200.0
 @export var base_damage := 25.0
 @export var min_damage := 12.0
 @export var falloff_start := 20.0
 @export var falloff_end := 80.0
 @export var max_health := 100
-@export var tracer_time := 0.06
-@export var tracer_width := 0.03
-@export var tracer_color := Color(1.0, 0.85, 0.5, 1.0)
+@export var tracer_time := 0.08
+@export var tracer_width := 0.04
+@export var tracer_color := Color(1.0, 0.9, 0.6, 0.8)
+@export var tracer_muzzle_offset := 0.1
 @export var show_tracers := true
 
 @onready var head: Node3D = $Head
@@ -46,6 +47,7 @@ var remote_target_pitch: float = 0.0
 var default_collision_layer: int = 0
 var default_collision_mask: int = 0
 var weapon: Node3D = null
+var muzzle: Node3D = null
 var hit_marker: Label = null
 var hit_marker_token: int = 0
 
@@ -57,6 +59,7 @@ func _ready() -> void:
 	remote_target_transform = global_transform
 	remote_target_pitch = head.rotation.x
 	weapon = get_node_or_null("Head/Camera3D/Weapon") as Node3D
+	muzzle = get_node_or_null("Head/Camera3D/Weapon/Muzzle") as Node3D
 	hit_marker = get_node_or_null("/root/Main/HUD/HitMarker") as Label
 
 	if is_multiplayer_authority():
@@ -155,20 +158,37 @@ func _handle_fire(delta: float) -> void:
 	fire_cooldown = 1.0 / fire_rate
 	_apply_recoil_kick()
 
-	var origin: Vector3 = camera.global_transform.origin
-	var direction: Vector3 = _get_spread_direction()
-	_spawn_tracer_from_local(origin, direction)
+	var camera_origin: Vector3 = camera.global_transform.origin
+	var camera_dir: Vector3 = _get_spread_direction()
+	var muzzle_origin: Vector3 = camera_origin
+	if muzzle:
+		muzzle_origin = muzzle.global_transform.origin
+
+	var aim_point: Vector3 = camera_origin + camera_dir * max_distance
+	var fire_dir: Vector3 = aim_point - muzzle_origin
+	if fire_dir.length() <= 0.001:
+		fire_dir = camera_dir
+	else:
+		fire_dir = fire_dir.normalized()
 
 	if multiplayer.is_server():
-		_do_fire(origin, direction, multiplayer.get_unique_id())
+		var end_pos: Vector3 = _do_fire(muzzle_origin, fire_dir, multiplayer.get_unique_id())
+		_spawn_tracer_local(muzzle_origin, end_pos)
+		_broadcast_tracer(muzzle_origin, end_pos, multiplayer.get_unique_id())
 	else:
-		rpc_id(1, "server_fire", origin, direction)
+		var end_pos: Vector3 = _predict_tracer_end(muzzle_origin, fire_dir)
+		_spawn_tracer_local(muzzle_origin, end_pos)
+		rpc_id(1, "server_fire", muzzle_origin, fire_dir)
 
 func _apply_recoil_kick() -> void:
-	recoil_pitch += deg_to_rad(recoil_kick_pitch)
-	recoil_yaw += deg_to_rad(rng.randf_range(-recoil_kick_yaw, recoil_kick_yaw))
+	var pitch_kick: float = recoil_kick_pitch * rng.randf_range(0.85, 1.15)
+	var yaw_kick: float = recoil_kick_yaw * rng.randf_range(-1.0, 1.0)
+	recoil_pitch += deg_to_rad(pitch_kick)
+	recoil_yaw += deg_to_rad(yaw_kick)
 
 func _get_spread_direction() -> Vector3:
+	if spread_degrees <= 0.0:
+		return -camera.global_transform.basis.z
 	var spread_rad: float = deg_to_rad(spread_degrees)
 	var spread_x: float = rng.randfn(0.0, spread_rad)
 	var spread_y: float = rng.randfn(0.0, spread_rad)
@@ -181,9 +201,10 @@ func server_fire(origin: Vector3, direction: Vector3) -> void:
 	if not multiplayer.is_server():
 		return
 	var shooter_id: int = multiplayer.get_remote_sender_id()
-	_do_fire(origin, direction, shooter_id)
+	var end_pos: Vector3 = _do_fire(origin, direction, shooter_id)
+	_broadcast_tracer(origin, end_pos, shooter_id)
 
-func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> void:
+func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
 	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
 		origin,
@@ -193,14 +214,16 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> void:
 	query.collision_mask = HIT_MASK
 
 	var result: Dictionary = space.intersect_ray(query)
+	var end_pos: Vector3 = origin + direction * max_distance
 	if result.is_empty():
-		return
+		return end_pos
 
+	end_pos = result.position
 	var collider: Object = result.get("collider")
 	if collider == null:
-		return
+		return end_pos
 
-	var distance := origin.distance_to(result.position)
+	var distance: float = origin.distance_to(result.position)
 	var damage := _compute_damage(distance)
 	if collider.has_method("apply_damage"):
 		collider.apply_damage(damage, shooter_id)
@@ -208,6 +231,7 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> void:
 			_show_hit_marker()
 		elif shooter_id != 0:
 			rpc_id(shooter_id, "client_hit_confirm")
+	return end_pos
 
 func _compute_damage(distance: float) -> float:
 	if distance <= falloff_start:
@@ -294,9 +318,7 @@ func _show_hit_marker() -> void:
 	if hit_marker_token == token:
 		hit_marker.visible = false
 
-func _spawn_tracer_from_local(origin: Vector3, direction: Vector3) -> void:
-	if not show_tracers:
-		return
+func _predict_tracer_end(origin: Vector3, direction: Vector3) -> Vector3:
 	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
 	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
 		origin,
@@ -305,10 +327,38 @@ func _spawn_tracer_from_local(origin: Vector3, direction: Vector3) -> void:
 	query.exclude = [self]
 	query.collision_mask = HIT_MASK
 	var result: Dictionary = space.intersect_ray(query)
-	var end_pos: Vector3 = origin + direction * max_distance
-	if not result.is_empty():
-		end_pos = result.position
-	_spawn_tracer(origin, end_pos)
+	if result.is_empty():
+		return origin + direction * max_distance
+	return result.position
+
+func _spawn_tracer_local(start_pos: Vector3, end_pos: Vector3) -> void:
+	if not show_tracers:
+		return
+	var tracer_start: Vector3 = _get_tracer_start(start_pos, end_pos)
+	_spawn_tracer(tracer_start, end_pos)
+
+@rpc("any_peer", "unreliable", "call_local")
+func client_spawn_tracer(start_pos: Vector3, end_pos: Vector3) -> void:
+	if not show_tracers:
+		return
+	var tracer_start: Vector3 = _get_tracer_start(start_pos, end_pos)
+	_spawn_tracer(tracer_start, end_pos)
+
+func _broadcast_tracer(origin: Vector3, end_pos: Vector3, shooter_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	var start_pos: Vector3 = origin
+	for peer_id: int in multiplayer.get_peers():
+		if peer_id == shooter_id:
+			continue
+		rpc_id(peer_id, "client_spawn_tracer", start_pos, end_pos)
+
+func _get_tracer_start(start_pos: Vector3, end_pos: Vector3) -> Vector3:
+	var dir: Vector3 = end_pos - start_pos
+	var length: float = dir.length()
+	if length <= 0.001:
+		return start_pos
+	return start_pos + dir.normalized() * tracer_muzzle_offset
 
 func _spawn_tracer(start_pos: Vector3, end_pos: Vector3) -> void:
 	var root: Node = get_tree().current_scene
@@ -330,6 +380,9 @@ func _spawn_tracer(start_pos: Vector3, end_pos: Vector3) -> void:
 	var material: StandardMaterial3D = StandardMaterial3D.new()
 	material.albedo_color = tracer_color
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.emission = tracer_color
+	material.emission_energy_multiplier = 1.3
 
 	var inst: MeshInstance3D = MeshInstance3D.new()
 	inst.mesh = mesh
@@ -341,6 +394,7 @@ func _spawn_tracer(start_pos: Vector3, end_pos: Vector3) -> void:
 	await get_tree().create_timer(tracer_time).timeout
 	if is_instance_valid(inst):
 		inst.queue_free()
+
 func _send_state() -> void:
 	var pitch: float = head.rotation.x
 	if multiplayer.is_server():

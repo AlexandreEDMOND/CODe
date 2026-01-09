@@ -38,13 +38,33 @@ chmod +x run.sh
 - `scripts/Bot.gd`: bots simples (errance)
 - `scenes/Map.tscn`: petite map statique
 
+## Hyperparametres (a tester/modifier)
+Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le feeling du tir.
+
+- `move_speed`, `sprint_speed`, `jump_velocity`: vitesse de base, sprint et saut
+- `mouse_sensitivity`, `max_pitch`: sensibilite et limite verticale de la camera
+- `fire_rate`: cadence de tir (balles/seconde)
+- `spread_degrees`: dispersion (0.0 = precision maximale)
+- `recoil_kick_pitch`, `recoil_kick_yaw`: recul instantane
+- `recoil_return_speed`: vitesse de retour du recul
+- `max_distance`: portee du hitscan
+- `base_damage`, `min_damage`: degats min/max
+- `falloff_start`, `falloff_end`: debut/fin du damage falloff
+- `max_health`: points de vie
+- `tracer_time`, `tracer_width`, `tracer_color`, `tracer_muzzle_offset`, `show_tracers`: visibilite/forme des traceurs
+
 ## ToDo (Enlever le texte quand elle sont implémentées) :
 
 Gameplay :
 - Pouvoir viser avec le clic droit
 - Mort instantané quand la balle touche la tête
+- Ajouter un peu de dispertion quand on tire sans viser et avoir une precision parfaite quand on vise
+- Viser tous fait ralentir 
+- Le viseur doit etre 
+- Avoir du recul avec l'arme, comme dans CS-GO, on ne bouge pas, mais le viseur monte un peu et va legerement a gauche ou a droite aléatoirement
+- Impact ball sur le mur qui disparaisse avec le temps
 
 Design :
-- Voir pour trouver des skin de perso et d'armes, avec des décors 
+- En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux
 - Trouver un skin d'une personne
 - Trouver un skin d'une arme
