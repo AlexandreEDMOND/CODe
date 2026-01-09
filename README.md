@@ -37,3 +37,12 @@ chmod +x run.sh
 - `scripts/Player.gd`: mouvement FPS + tir realiste (recul, dispersion, falloff)
 - `scripts/Bot.gd`: bots simples (errance)
 - `scenes/Map.tscn`: petite map statique
+
+## ToDo (Enlever le texte quand elle sont implémentées) :
+
+Gameplay :
+- Pouvoir viser avec le clic droit
+- Mort instantané quand la balle touche la tête
+
+Design :
+- Voir pour trouver des skin de perso et d'armes, avec des décors 

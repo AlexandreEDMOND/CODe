@@ -31,9 +31,9 @@ func _ready() -> void:
 
 func _ensure_input_actions() -> void:
 	var key_actions := {
-		"move_forward": [KEY_W, KEY_UP],
+		"move_forward": [KEY_W, KEY_UP, KEY_Z],
 		"move_back": [KEY_S, KEY_DOWN],
-		"move_left": [KEY_A, KEY_LEFT],
+		"move_left": [KEY_A, KEY_LEFT, KEY_Q],
 		"move_right": [KEY_D, KEY_RIGHT],
 		"jump": [KEY_SPACE],
 		"sprint": [KEY_SHIFT],
@@ -41,19 +41,24 @@ func _ensure_input_actions() -> void:
 	}
 
 	for action in key_actions.keys():
-		if InputMap.has_action(action):
-			continue
-		InputMap.add_action(action)
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
 		for keycode in key_actions[action]:
 			var ev := InputEventKey.new()
 			ev.keycode = keycode
-			InputMap.action_add_event(action, ev)
+			if not InputMap.action_has_event(action, ev):
+				InputMap.action_add_event(action, ev)
 
 	if not InputMap.has_action("fire"):
 		InputMap.add_action("fire")
 		var mouse_ev := InputEventMouseButton.new()
 		mouse_ev.button_index = MOUSE_BUTTON_LEFT
 		InputMap.action_add_event("fire", mouse_ev)
+	else:
+		var mouse_ev := InputEventMouseButton.new()
+		mouse_ev.button_index = MOUSE_BUTTON_LEFT
+		if not InputMap.action_has_event("fire", mouse_ev):
+			InputMap.action_add_event("fire", mouse_ev)
 
 func _start_host() -> void:
 	var peer := ENetMultiplayerPeer.new()
