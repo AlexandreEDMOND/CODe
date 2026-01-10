@@ -216,24 +216,17 @@ func _handle_fire(delta: float) -> void:
 	if muzzle:
 		muzzle_origin = muzzle.global_transform.origin
 
-	var aim_point: Vector3 = camera_origin + camera_dir * max_distance
-	var fire_dir: Vector3 = aim_point - muzzle_origin
-	if fire_dir.length() <= 0.001:
-		fire_dir = camera_dir
-	else:
-		fire_dir = fire_dir.normalized()
-
 	var spawn_tracer: bool = _should_spawn_tracer()
 	if multiplayer.is_server():
-		var end_pos: Vector3 = _do_fire(muzzle_origin, fire_dir, multiplayer.get_unique_id())
+		var end_pos: Vector3 = _do_fire(camera_origin, camera_dir, multiplayer.get_unique_id())
 		if spawn_tracer:
 			_spawn_tracer_local(muzzle_origin, end_pos)
 			_broadcast_tracer(muzzle_origin, end_pos, multiplayer.get_unique_id())
 	else:
-		var end_pos: Vector3 = _predict_tracer_end(muzzle_origin, fire_dir)
+		var end_pos: Vector3 = _predict_tracer_end(camera_origin, camera_dir)
 		if spawn_tracer:
 			_spawn_tracer_local(muzzle_origin, end_pos)
-		rpc_id(1, "server_fire", muzzle_origin, fire_dir)
+		rpc_id(1, "server_fire", camera_origin, camera_dir, muzzle_origin)
 
 func _apply_recoil_kick() -> void:
 	var pitch_kick: float = recoil_kick_pitch * rng.randf_range(0.85, 1.15)
@@ -252,13 +245,13 @@ func _get_spread_direction() -> Vector3:
 	return (dir + basis.x * spread_x + basis.y * spread_y).normalized()
 
 @rpc("any_peer", "reliable")
-func server_fire(origin: Vector3, direction: Vector3) -> void:
+func server_fire(origin: Vector3, direction: Vector3, tracer_origin: Vector3) -> void:
 	if not multiplayer.is_server():
 		return
 	var shooter_id: int = multiplayer.get_remote_sender_id()
 	var end_pos: Vector3 = _do_fire(origin, direction, shooter_id)
 	if _should_spawn_tracer():
-		_broadcast_tracer(origin, end_pos, shooter_id)
+		_broadcast_tracer(tracer_origin, end_pos, shooter_id)
 
 func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
