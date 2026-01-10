@@ -62,9 +62,6 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-- Fix problème tir la balle doit partir en ligne droite sur le curseur, elle ne doit pas partir de l'arme. 
-Pour l'animation y'en a une qui vient de l'arme, mais c'est juste une animation. 
-
 - Avoir du recul avec l'arme, comme dans CS-GO, le joueur ne bouge pas, mais la camera monte un peu et va legerement a gauche ou a droite aléatoirement. 
 
 - Pouvoir viser avec le clic droit. En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux. On voit a travers le viseur de l'arme
