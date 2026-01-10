@@ -42,6 +42,18 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @export var impact_color := Color(0.08, 0.08, 0.08, 0.8)
 @export var impact_offset := 0.02
 @export var show_impacts := true
+@export var headbob_enabled := true
+@export var headbob_frequency := 8.5
+@export var headbob_vertical := 0.065
+@export var headbob_horizontal := 0.045
+@export var headbob_smooth := 12.0
+@export var sprint_headbob_multiplier := 1.35
+@export var sprint_fov_boost := 8.0
+@export var sprint_fov_smooth := 8.0
+@export var weapon_bob_enabled := true
+@export var weapon_bob_pos_scale := Vector3(0.6, 0.5, 0.0)
+@export var weapon_bob_rot_scale := Vector3(1.6, 1.0, 1.2)
+@export var weapon_bob_smooth := 10.0
 @export var show_own_body := false
 @export var character_skin_scale := 1.0
 @export var weapon_skin_scale := 1.0
@@ -93,6 +105,14 @@ var weapon_skin_loaded: bool = false
 var shots_fired_count: int = 0
 var last_damage_from: int = 0
 var last_hit_was_headshot: bool = false
+var headbob_phase: float = 0.0
+var headbob_offset: Vector3 = Vector3.ZERO
+var camera_base_pos: Vector3 = Vector3.ZERO
+var camera_base_fov: float = 0.0
+var weapon_base_pos: Vector3 = Vector3.ZERO
+var weapon_base_rot: Vector3 = Vector3.ZERO
+var weapon_bob_pos: Vector3 = Vector3.ZERO
+var weapon_bob_rot: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	rng.randomize()
@@ -127,6 +147,12 @@ func _ready() -> void:
 		body.visible = (not is_multiplayer_authority()) or show_own_body
 	if body_skin_loaded:
 		mesh.visible = false
+	if camera:
+		camera_base_pos = camera.position
+		camera_base_fov = camera.fov
+	if weapon:
+		weapon_base_pos = weapon.position
+		weapon_base_rot = weapon.rotation
 
 func _input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
@@ -152,6 +178,8 @@ func _process_local(delta: float) -> void:
 	_update_recoil(delta)
 	_apply_look()
 	_handle_fire(delta)
+	_update_headbob(delta)
+	_update_sprint_fov(delta)
 
 	if dead:
 		velocity = Vector3.ZERO
@@ -197,6 +225,56 @@ func _apply_look() -> void:
 func _update_recoil(delta: float) -> void:
 	recoil_pitch = move_toward(recoil_pitch, 0.0, recoil_return_speed * delta)
 	recoil_yaw = move_toward(recoil_yaw, 0.0, recoil_return_speed * delta)
+
+func _update_headbob(delta: float) -> void:
+	if not headbob_enabled or camera == null:
+		return
+	var speed: float = Vector3(velocity.x, 0.0, velocity.z).length()
+	var moving: bool = is_on_floor() and speed > 0.1
+	if moving:
+		var speed_ratio: float = clamp(speed / sprint_speed, 0.4, 1.2)
+		var sprinting: bool = Input.is_action_pressed("sprint") and speed_ratio > 0.7
+		var intensity: float = sprint_headbob_multiplier if sprinting else 1.0
+		headbob_phase += delta * headbob_frequency * speed_ratio
+		var vertical := sin(headbob_phase * 2.0) * headbob_vertical * intensity
+		var horizontal := cos(headbob_phase) * headbob_horizontal * intensity
+		var target := Vector3(horizontal, vertical, 0.0)
+		headbob_offset = headbob_offset.lerp(target, min(1.0, delta * headbob_smooth))
+		_update_weapon_bob(delta, intensity, true)
+	else:
+		headbob_offset = headbob_offset.lerp(Vector3.ZERO, min(1.0, delta * headbob_smooth))
+		_update_weapon_bob(delta, 1.0, false)
+	camera.position = camera_base_pos + headbob_offset
+
+func _update_sprint_fov(delta: float) -> void:
+	if camera == null:
+		return
+	var speed: float = Vector3(velocity.x, 0.0, velocity.z).length()
+	var sprinting: bool = is_on_floor() and speed > 0.1 and Input.is_action_pressed("sprint")
+	var target_fov: float = camera_base_fov + (sprint_fov_boost if sprinting else 0.0)
+	camera.fov = lerp(camera.fov, target_fov, min(1.0, delta * sprint_fov_smooth))
+
+func _update_weapon_bob(delta: float, intensity: float, moving: bool) -> void:
+	if not weapon_bob_enabled or weapon == null:
+		return
+	if moving:
+		var pos_target := Vector3(
+			headbob_offset.x * weapon_bob_pos_scale.x,
+			headbob_offset.y * weapon_bob_pos_scale.y,
+			headbob_offset.z * weapon_bob_pos_scale.z
+		)
+		var rot_target := Vector3(
+			deg_to_rad(weapon_bob_rot_scale.x) * sin(headbob_phase * 2.0) * intensity,
+			deg_to_rad(weapon_bob_rot_scale.y) * cos(headbob_phase) * intensity,
+			deg_to_rad(weapon_bob_rot_scale.z) * sin(headbob_phase) * intensity
+		)
+		weapon_bob_pos = weapon_bob_pos.lerp(pos_target, min(1.0, delta * weapon_bob_smooth))
+		weapon_bob_rot = weapon_bob_rot.lerp(rot_target, min(1.0, delta * weapon_bob_smooth))
+	else:
+		weapon_bob_pos = weapon_bob_pos.lerp(Vector3.ZERO, min(1.0, delta * weapon_bob_smooth))
+		weapon_bob_rot = weapon_bob_rot.lerp(Vector3.ZERO, min(1.0, delta * weapon_bob_smooth))
+	weapon.position = weapon_base_pos + weapon_bob_pos
+	weapon.rotation = weapon_base_rot + weapon_bob_rot
 
 func _handle_fire(delta: float) -> void:
 	fire_cooldown = max(0.0, fire_cooldown - delta)

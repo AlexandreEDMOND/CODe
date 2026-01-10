@@ -75,4 +75,3 @@ Gameplay :
 Design :
 - Animation fluide quand on passe en mode viseur et quand on le quitte
 - Arme qui bouge quand on avance
-- Camera qui bouge quand on avance, elle doit mimer un mouvement de tete lorsque que l'on marche, fait quelque chose de simple mais réaliste
