@@ -145,7 +145,8 @@ func _on_player_died(player: Node, killer_id: int) -> void:
 	if not is_instance_valid(player):
 		return
 
-	_broadcast_kill(player.name, killer_id, false)
+	var headshot: bool = player.last_hit_was_headshot
+	_broadcast_kill(player.name, killer_id, false, headshot)
 	player.rpc("set_dead", true)
 	await get_tree().create_timer(player_respawn_delay).timeout
 	if not is_instance_valid(player):
@@ -159,7 +160,8 @@ func _on_bot_died(bot: Node, killer_id: int) -> void:
 	if not is_instance_valid(bot):
 		return
 
-	_broadcast_kill(bot.name, killer_id, true)
+	var headshot: bool = bot.last_hit_was_headshot
+	_broadcast_kill(bot.name, killer_id, true, headshot)
 	bot.rpc("set_dead", true)
 	await get_tree().create_timer(bot_respawn_delay).timeout
 	if not is_instance_valid(bot):
@@ -210,7 +212,7 @@ func _update_kill_feed_label() -> void:
 		lines.append(entry["text"])
 	kill_feed_label.text = "\n".join(lines)
 
-func _broadcast_kill(victim_name: String, killer_id: int, victim_is_bot: bool) -> void:
+func _broadcast_kill(victim_name: String, killer_id: int, victim_is_bot: bool, headshot: bool) -> void:
 	var killer_name := _get_killer_name(killer_id)
 	var victim_label := victim_name
 	if victim_is_bot:
@@ -218,6 +220,8 @@ func _broadcast_kill(victim_name: String, killer_id: int, victim_is_bot: bool) -
 	else:
 		victim_label = victim_name.replace("Player_", "Player ")
 	var message := "%s -> %s" % [killer_name, victim_label]
+	if headshot:
+		message += " (HEADSHOT)"
 	rpc("add_kill_feed", message)
 
 func _get_killer_name(killer_id: int) -> String:

@@ -92,6 +92,7 @@ var body_skin_loaded: bool = false
 var weapon_skin_loaded: bool = false
 var shots_fired_count: int = 0
 var last_damage_from: int = 0
+var last_hit_was_headshot: bool = false
 
 func _ready() -> void:
 	rng.randomize()
@@ -302,13 +303,14 @@ func _compute_damage(distance: float) -> float:
 	var t := (distance - falloff_start) / (falloff_end - falloff_start)
 	return lerp(base_damage, min_damage, t)
 
-func apply_damage(amount: float, _from_peer_id: int = 0) -> void:
+func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false) -> void:
 	if not multiplayer.is_server():
 		return
 	if dead:
 		return
 
 	last_damage_from = _from_peer_id
+	last_hit_was_headshot = headshot
 	health = max(health - int(round(amount)), 0)
 	_sync_health_to_owner()
 	if health <= 0:
@@ -352,6 +354,7 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 	velocity = Vector3.ZERO
 	dead = false
 	health = new_health
+	last_hit_was_headshot = false
 	mesh.visible = (not is_multiplayer_authority()) and (not body_skin_loaded)
 	if body:
 		body.visible = show_own_body or (not is_multiplayer_authority())

@@ -45,6 +45,7 @@ var skin_seed: int = 0
 var body_skin_loaded: bool = false
 var spawn_index: int = 0
 var last_damage_from: int = 0
+var last_hit_was_headshot: bool = false
 var move_timer: float = 0.0
 var jump_timer: float = 0.0
 var send_timer: float = 0.0
@@ -126,13 +127,14 @@ func client_receive_state(state_transform: Transform3D) -> void:
 		return
 	remote_target_transform = state_transform
 
-func apply_damage(amount: float, _from_peer_id: int = 0) -> void:
+func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false) -> void:
 	if not multiplayer.is_server():
 		return
 	if dead:
 		return
 
 	last_damage_from = _from_peer_id
+	last_hit_was_headshot = headshot
 	health = max(health - int(round(amount)), 0)
 	if health <= 0:
 		dead = true
@@ -156,6 +158,7 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 	velocity = Vector3.ZERO
 	dead = false
 	health = new_health
+	last_hit_was_headshot = false
 	mesh.visible = not body_skin_loaded
 	if body:
 		body.visible = true

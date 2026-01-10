@@ -62,9 +62,6 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-
-- Quand un joueur tue un autre, l'info s'affiche bien en haut à gauche mais on sais pas si le tir qui l'a tué a était fait dans la tete ou pas ?
-
 - Fix problème tir la balle doit partir en ligne droite sur le curseur, elle ne doit pas partir de l'arme. 
 Pour l'animation y'en a une qui vient de l'arme, mais c'est juste une animation. 
 

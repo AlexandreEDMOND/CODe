@@ -13,4 +13,4 @@ func apply_damage(amount: float, from_peer_id: int = 0) -> void:
 	var final_amount := amount * damage_multiplier
 	if instant_kill:
 		final_amount = 9999.0
-	owner.apply_damage(final_amount, from_peer_id)
+	owner.apply_damage(final_amount, from_peer_id, instant_kill)
