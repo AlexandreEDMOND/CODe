@@ -61,19 +61,21 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
+- Rajoute l'impact des balles sur le mur.  L'impact disparait avec le temps.
+- Fix problème tir la balle doit partir en ligne droite sur le curseur, elle ne doit pas partir de l'arme. 
+Pour l'animation y'en a une qui vient de l'arme, mais c'est juste une animation. 
 
-- Revoir la hitbox : Il faut que la hitbox corresponde exactement au skin. la tête doit faire mourir immédiatement. Ajoute aussi un message en haut à gauche quand un joueur tue un autre joueur/bot
+- Avoir du recul avec l'arme, comme dans CS-GO, le joueur ne bouge pas, mais la camera monte un peu et va legerement a gauche ou a droite aléatoirement. 
 
-- Impact ball sur le mur qui disparaisse avec le temps
 - Pouvoir viser avec le clic droit. En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux. On voit a travers le viseur de l'arme
+  
 - Ajouter un peu de dispertion quand on tire sans viser et avoir une precision parfaite quand on vise
-- Viser tous fait ralentir 
-- Le viseur doit etre 
-- Avoir du recul avec l'arme, comme dans CS-GO, on ne bouge pas, mais la camera monte un peu et va legerement a gauche ou a droite aléatoirement. 
+- Viser fait ralentir le joueur dans ces déplacements
+   
 - Quand on fait option, un menu s'ouvre et on peut changer son skin.
 - Ajouter 2 autres armes, on peut changer d'areme en appuyant sur la touche E
 
 Design :
 - Animation fluide quand on passe en mode viseur et quand on le quitte
 - Arme qui bouge quand on avance
-- Camera qui bouge quand on avance
+- Camera qui bouge quand on avance, elle doit mimer un mouvement de tete lorsque que l'on marche, fait quelque chose de simple mais réaliste

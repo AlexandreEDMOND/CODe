@@ -7,16 +7,21 @@ extends Node3D
 @export var bot_respawn_delay := 2.0
 @export var player_spawn_index := 0
 @export var bot_spawn_start_index := 1
+@export var kill_feed_max := 5
+@export var kill_feed_duration := 4.0
 
 @onready var players_root := $Players
 @onready var bots_root := $Bots
 @onready var spawn_points := $SpawnPoints.get_children()
 @onready var info_label := $HUD/InfoLabel
+@onready var kill_feed_label := $HUD/KillFeed
 
 var player_scene := preload("res://scenes/Player.tscn")
 var bot_scene := preload("res://scenes/Bot.tscn")
 var rng := RandomNumberGenerator.new()
 var next_bot_id := 1
+var kill_feed_entries: Array[Dictionary] = []
+var kill_feed_counter: int = 0
 
 func _ready() -> void:
 	rng.randomize()
@@ -134,12 +139,13 @@ func spawn_bot(bot_id: int, spawn_transform: Transform3D, spawn_index: int) -> v
 	bots_root.add_child(bot)
 	bot.died.connect(_on_bot_died)
 
-func _on_player_died(player: Node) -> void:
+func _on_player_died(player: Node, killer_id: int) -> void:
 	if not multiplayer.is_server():
 		return
 	if not is_instance_valid(player):
 		return
 
+	_broadcast_kill(player.name, killer_id, false)
 	player.rpc("set_dead", true)
 	await get_tree().create_timer(player_respawn_delay).timeout
 	if not is_instance_valid(player):
@@ -147,12 +153,13 @@ func _on_player_died(player: Node) -> void:
 	var spawn_transform := _get_spawn_transform(player.spawn_index)
 	player.rpc("respawn_at", spawn_transform, player.max_health)
 
-func _on_bot_died(bot: Node) -> void:
+func _on_bot_died(bot: Node, killer_id: int) -> void:
 	if not multiplayer.is_server():
 		return
 	if not is_instance_valid(bot):
 		return
 
+	_broadcast_kill(bot.name, killer_id, true)
 	bot.rpc("set_dead", true)
 	await get_tree().create_timer(bot_respawn_delay).timeout
 	if not is_instance_valid(bot):
@@ -173,6 +180,50 @@ func _get_spawn_transform(index: int) -> Transform3D:
 func _set_info(text: String) -> void:
 	if info_label:
 		info_label.text = text
+
+@rpc("authority", "reliable", "call_local")
+func add_kill_feed(message: String) -> void:
+	if kill_feed_label == null:
+		return
+	kill_feed_counter += 1
+	var entry := {"id": kill_feed_counter, "text": message}
+	kill_feed_entries.append(entry)
+	while kill_feed_entries.size() > kill_feed_max:
+		kill_feed_entries.pop_front()
+	_update_kill_feed_label()
+	var entry_id: int = kill_feed_counter
+	await get_tree().create_timer(kill_feed_duration).timeout
+	_remove_kill_entry(entry_id)
+
+func _remove_kill_entry(entry_id: int) -> void:
+	for i in range(kill_feed_entries.size()):
+		if kill_feed_entries[i]["id"] == entry_id:
+			kill_feed_entries.remove_at(i)
+			break
+	_update_kill_feed_label()
+
+func _update_kill_feed_label() -> void:
+	if kill_feed_label == null:
+		return
+	var lines: Array[String] = []
+	for entry in kill_feed_entries:
+		lines.append(entry["text"])
+	kill_feed_label.text = "\n".join(lines)
+
+func _broadcast_kill(victim_name: String, killer_id: int, victim_is_bot: bool) -> void:
+	var killer_name := _get_killer_name(killer_id)
+	var victim_label := victim_name
+	if victim_is_bot:
+		victim_label = victim_name.replace("Bot_", "Bot ")
+	else:
+		victim_label = victim_name.replace("Player_", "Player ")
+	var message := "%s -> %s" % [killer_name, victim_label]
+	rpc("add_kill_feed", message)
+
+func _get_killer_name(killer_id: int) -> String:
+	if killer_id <= 0:
+		return "World"
+	return "Player %d" % killer_id
 
 func _get_arg_value(flag: String, default_value: String) -> String:
 	var args := OS.get_cmdline_args()
