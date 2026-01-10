@@ -54,6 +54,7 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 - `falloff_start`, `falloff_end`: debut/fin du damage falloff
 - `max_health`: points de vie
 - `tracer_time`, `tracer_speed`, `tracer_width`, `tracer_segment_length`, `tracer_every_n`, `tracer_color`, `tracer_muzzle_offset`, `show_tracers`: visibilite/forme des traceurs
+- `impact_size`, `impact_lifetime`, `impact_fade_time`, `impact_color`, `impact_offset`, `show_impacts`: impacts de balles sur les murs
 - `show_own_body`: afficher votre propre skin en vue FPS
 - `character_skin_scale`, `weapon_skin_scale`: taille des skins perso/arme
 
@@ -61,7 +62,9 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-- Rajoute l'impact des balles sur le mur.  L'impact disparait avec le temps.
+
+- Quand un joueur tue un autre, l'info s'affiche bien en haut à gauche mais on sais pas si le tir qui l'a tué a était fait dans la tete ou pas ?
+
 - Fix problème tir la balle doit partir en ligne droite sur le curseur, elle ne doit pas partir de l'arme. 
 Pour l'animation y'en a une qui vient de l'arme, mais c'est juste une animation. 
 

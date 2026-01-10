@@ -10,6 +10,7 @@ const HIT_MASK := LAYER_WORLD | LAYER_HITBOX
 const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
 const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 const TRACER_SCENE := preload("res://scenes/Tracer.tscn")
+const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 
 @export var move_speed := 5.0
 @export var sprint_speed := 7.5
@@ -35,6 +36,12 @@ const TRACER_SCENE := preload("res://scenes/Tracer.tscn")
 @export var tracer_color := Color(1.0, 0.9, 0.6, 0.8)
 @export var tracer_muzzle_offset := 0.1
 @export var show_tracers := true
+@export var impact_size := 0.18
+@export var impact_lifetime := 0.8
+@export var impact_fade_time := 0.25
+@export var impact_color := Color(0.08, 0.08, 0.08, 0.8)
+@export var impact_offset := 0.02
+@export var show_impacts := true
 @export var show_own_body := false
 @export var character_skin_scale := 1.0
 @export var weapon_skin_scale := 1.0
@@ -273,6 +280,7 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 	if collider == null:
 		return end_pos
 
+	var hit_normal: Vector3 = result["normal"]
 	var distance: float = origin.distance_to(result.position)
 	var damage := _compute_damage(distance)
 	if collider.has_method("apply_damage"):
@@ -281,6 +289,9 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 			_show_hit_marker()
 		elif shooter_id != 0:
 			rpc_id(shooter_id, "client_hit_confirm")
+	else:
+		_spawn_impact_local(result.position, hit_normal)
+		_broadcast_impact(result.position, hit_normal, shooter_id)
 	return end_pos
 
 func _compute_damage(distance: float) -> float:
@@ -798,6 +809,34 @@ func _spawn_tracer(start_pos: Vector3, end_pos: Vector3) -> void:
 	tracer.segment_length = tracer_segment_length
 	tracer.max_time = tracer_time
 	root.add_child(tracer)
+
+func _spawn_impact_local(position: Vector3, normal: Vector3) -> void:
+	if not show_impacts:
+		return
+	var root: Node = get_tree().current_scene
+	if root == null:
+		return
+	var impact := IMPACT_SCENE.instantiate()
+	var spawn_pos: Vector3 = position + normal * impact_offset
+	var up_dir := Vector3.UP
+	if abs(normal.dot(up_dir)) > 0.98:
+		up_dir = Vector3.FORWARD
+	impact.look_at_from_position(spawn_pos, position - normal, up_dir)
+	impact.size = impact_size
+	impact.lifetime = impact_lifetime
+	impact.fade_time = impact_fade_time
+	impact.color = impact_color
+	root.add_child(impact)
+
+@rpc("any_peer", "unreliable", "call_local")
+func client_spawn_impact(position: Vector3, normal: Vector3) -> void:
+	_spawn_impact_local(position, normal)
+
+func _broadcast_impact(position: Vector3, normal: Vector3, shooter_id: int) -> void:
+	if not multiplayer.is_server():
+		return
+	for peer_id: int in multiplayer.get_peers():
+		rpc_id(peer_id, "client_spawn_impact", position, normal)
 
 func _send_state() -> void:
 	var pitch: float = head.rotation.x
