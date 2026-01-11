@@ -4,6 +4,7 @@ signal died(bot, killer_id)
 
 const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
 const LAYER_HITBOX := 8
+const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
 
 @export var max_health := 100
 @export var character_skin_scale := 1.0
@@ -12,7 +13,16 @@ const LAYER_HITBOX := 8
 @export var torso_width_ratio := 0.5
 @export var torso_depth_ratio := 0.85
 @export var leg_height_ratio := 0.45
-@export var debug_hitboxes := true
+@export var debug_hitboxes := false
+@export var death_burst_count := 14
+@export var death_burst_size := 0.12
+@export var death_burst_speed_min := 3.0
+@export var death_burst_speed_max := 7.0
+@export var death_burst_upward := 0.5
+@export var death_burst_gravity := 12.0
+@export var death_burst_lifetime := 1.1
+@export var death_burst_fade_time := 0.35
+@export var death_burst_color := Color(1.0, 0.8, 0.6, 1.0)
 @export var movement_enabled := true
 @export var move_speed := 2.0
 @export var move_segment_time := 1.2
@@ -50,6 +60,11 @@ var body_skin_loaded: bool = false
 var spawn_index: int = 0
 var last_damage_from: int = 0
 var last_hit_was_headshot: bool = false
+var last_damage_source_pos: Vector3 = Vector3.ZERO
+var body_base_pos: Vector3 = Vector3.ZERO
+var body_base_rot: Vector3 = Vector3.ZERO
+var mesh_base_pos: Vector3 = Vector3.ZERO
+var mesh_base_rot: Vector3 = Vector3.ZERO
 var move_timer: float = 0.0
 var jump_timer: float = 0.0
 var send_timer: float = 0.0
@@ -66,6 +81,12 @@ func _ready() -> void:
 	_apply_skin()
 	if body_skin_loaded:
 		mesh.visible = false
+	if body:
+		body_base_pos = body.position
+		body_base_rot = body.rotation
+	if mesh:
+		mesh_base_pos = mesh.position
+		mesh_base_rot = mesh.rotation
 	remote_target_transform = global_transform
 	if jump_enabled:
 		jump_timer = max(0.2, jump_interval * 0.5)
@@ -171,22 +192,32 @@ func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false,
 
 	last_damage_from = _from_peer_id
 	last_hit_was_headshot = headshot
+	last_damage_source_pos = _source_pos
 	health = max(health - int(round(amount)), 0)
 	if health <= 0:
 		dead = true
-		rpc("set_dead", true)
+		rpc("set_dead", true, last_damage_from, headshot, last_damage_source_pos)
 		emit_signal("died", self, last_damage_from)
 
 @rpc("any_peer", "reliable", "call_local")
-func set_dead(value: bool) -> void:
+func set_dead(value: bool, _killer_id: int = 0, headshot: bool = false, source_pos: Vector3 = Vector3.ZERO) -> void:
 	dead = value
-	mesh.visible = (not value) and (not body_skin_loaded)
-	if body:
-		body.visible = not value
+	if value:
+		_play_death_animation(headshot, source_pos)
+		if mesh:
+			mesh.visible = false
+		if body:
+			body.visible = false
+	else:
+		mesh.visible = not body_skin_loaded
+		if body:
+			body.visible = true
 	collision_layer = 0 if value else default_collision_layer
 	collision_mask = 0 if value else default_collision_mask
 	if value:
 		velocity = Vector3.ZERO
+	else:
+		_reset_death_pose()
 
 @rpc("any_peer", "reliable", "call_local")
 func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
@@ -195,12 +226,55 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 	dead = false
 	health = new_health
 	last_hit_was_headshot = false
+	last_damage_source_pos = Vector3.ZERO
 	mesh.visible = not body_skin_loaded
 	if body:
 		body.visible = true
+	if body:
+		body.position = body_base_pos
+		body.rotation = body_base_rot
+	if mesh:
+		mesh.position = mesh_base_pos
+		mesh.rotation = mesh_base_rot
 	collision_layer = default_collision_layer
 	collision_mask = default_collision_mask
 	remote_target_transform = spawn_transform
+	_reset_death_pose()
+
+func _play_death_animation(headshot: bool, _source_pos: Vector3) -> void:
+	_spawn_death_burst(headshot)
+
+func _spawn_death_burst(headshot: bool) -> void:
+	var base_node: Node3D = null
+	if body_skin_loaded and body:
+		base_node = body
+	elif mesh:
+		base_node = mesh
+	elif body:
+		base_node = body
+	if base_node == null:
+		return
+	var parent_node: Node = get_node_or_null("/root/Main/World")
+	if parent_node == null:
+		parent_node = get_tree().current_scene
+	if parent_node == null:
+		return
+	var burst: Node3D = DEATH_BURST_SCRIPT.new()
+	var headshot_multiplier := 1.3 if headshot else 1.0
+	burst.cube_count = death_burst_count
+	burst.cube_size = death_burst_size
+	burst.speed_min = death_burst_speed_min * headshot_multiplier
+	burst.speed_max = death_burst_speed_max * headshot_multiplier
+	burst.upward_bias = death_burst_upward
+	burst.gravity = death_burst_gravity
+	burst.lifetime = death_burst_lifetime
+	burst.fade_time = death_burst_fade_time
+	burst.base_color = death_burst_color
+	burst.global_transform = base_node.global_transform
+	parent_node.add_child(burst)
+
+func _reset_death_pose() -> void:
+	pass
 
 func _apply_skin() -> void:
 	if body == null:
@@ -517,7 +591,12 @@ func _match_leg_width_to_torso(leg_aabb: AABB, torso_aabb: AABB) -> AABB:
 	return AABB(leg_pos, leg_size)
 
 func _update_hitbox_debug(hitbox: Area3D, size: Vector3, color: Color) -> void:
-	if not debug_hitboxes or hitbox == null:
+	if hitbox == null:
+		return
+	if not debug_hitboxes:
+		var existing: MeshInstance3D = hitbox.get_node_or_null("DebugMesh") as MeshInstance3D
+		if existing:
+			existing.queue_free()
 		return
 	var mesh_instance: MeshInstance3D = hitbox.get_node_or_null("DebugMesh") as MeshInstance3D
 	if mesh_instance == null:

@@ -64,9 +64,13 @@ Gameplay :
 
 
 - Animation de mort quand on tue quelqu'un ou qu'on se fait tuer
+- Map plus grande
 
-- Quand on fait option, un menu s'ouvre et on peut changer son skin.
+- Quand on fait echap, un menu s'ouvre et on peut changer son skin. On peut aussi regler la sensibilité dans le menu, ainsi que son nom
+- Reduire degats arme principale
+- 
 - Ajouter 2 autres armes, on peut changer d'arme en appuyant sur la touche E
+
 
 Design :
 - chercher de nouvelle texture

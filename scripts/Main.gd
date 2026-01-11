@@ -184,7 +184,6 @@ func _on_player_died(player: Node, killer_id: int) -> void:
 
 	var headshot: bool = player.last_hit_was_headshot
 	_broadcast_kill(player.name, killer_id, false, headshot)
-	player.rpc("set_dead", true)
 	await get_tree().create_timer(player_respawn_delay).timeout
 	if not is_instance_valid(player):
 		return
@@ -199,7 +198,6 @@ func _on_bot_died(bot: Node, killer_id: int) -> void:
 
 	var headshot: bool = bot.last_hit_was_headshot
 	_broadcast_kill(bot.name, killer_id, true, headshot)
-	bot.rpc("set_dead", true)
 	await get_tree().create_timer(bot_respawn_delay).timeout
 	if not is_instance_valid(bot):
 		return

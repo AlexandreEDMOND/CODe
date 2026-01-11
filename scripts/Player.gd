@@ -11,6 +11,7 @@ const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
 const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 const TRACER_SCENE := preload("res://scenes/Tracer.tscn")
 const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
+const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
 
 @export var move_speed := 5.0
 @export var sprint_speed := 7.5
@@ -70,6 +71,25 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @export var damage_arrow_fade := 0.5
 @export var low_health_start_ratio := 0.4
 @export var low_health_max_intensity := 1.0
+@export var death_fall_time := 0.45
+@export var death_head_drop := 0.6
+@export var death_head_pitch := -0.8
+@export var death_headshot_pitch := -1.15
+@export var death_camera_delay := 0.45
+@export var death_camera_distance := 3.2
+@export var death_camera_height := 1.0
+@export var death_camera_smooth := 6.0
+@export var death_overlay_fade := 2.0
+@export var death_overlay_max := 0.6
+@export var death_burst_count := 14
+@export var death_burst_size := 0.12
+@export var death_burst_speed_min := 3.0
+@export var death_burst_speed_max := 7.0
+@export var death_burst_upward := 0.5
+@export var death_burst_gravity := 12.0
+@export var death_burst_lifetime := 1.1
+@export var death_burst_fade_time := 0.35
+@export var death_burst_color := Color(1.0, 0.8, 0.6, 1.0)
 @export var show_own_body := false
 @export var character_skin_scale := 1.0
 @export var weapon_skin_scale := 1.0
@@ -98,6 +118,10 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @onready var low_health_overlay: ColorRect = get_node_or_null("/root/Main/HUD/LowHealthOverlay") as ColorRect
 @onready var damage_arrow_pivot: Control = get_node_or_null("/root/Main/HUD/DamageArrowPivot") as Control
 @onready var damage_arrow: ColorRect = get_node_or_null("/root/Main/HUD/DamageArrowPivot/DamageArrow") as ColorRect
+@onready var death_camera: Camera3D = get_node_or_null("DeathCamera") as Camera3D
+@onready var death_overlay: ColorRect = get_node_or_null("/root/Main/HUD/DeathOverlay") as ColorRect
+@onready var death_title: Label = get_node_or_null("/root/Main/HUD/DeathTitle") as Label
+@onready var death_subtitle: Label = get_node_or_null("/root/Main/HUD/DeathSubtitle") as Label
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var look_yaw: float = 0.0
@@ -126,10 +150,16 @@ var last_damage_from: int = 0
 var last_hit_was_headshot: bool = false
 var headbob_phase: float = 0.0
 var headbob_offset: Vector3 = Vector3.ZERO
+var head_base_pos: Vector3 = Vector3.ZERO
+var head_base_rot: Vector3 = Vector3.ZERO
 var camera_base_pos: Vector3 = Vector3.ZERO
 var camera_base_fov: float = 0.0
+var body_base_pos: Vector3 = Vector3.ZERO
+var body_base_rot: Vector3 = Vector3.ZERO
 var weapon_base_pos: Vector3 = Vector3.ZERO
 var weapon_base_rot: Vector3 = Vector3.ZERO
+var mesh_base_pos: Vector3 = Vector3.ZERO
+var mesh_base_rot: Vector3 = Vector3.ZERO
 var weapon_bob_pos: Vector3 = Vector3.ZERO
 var weapon_bob_rot: Vector3 = Vector3.ZERO
 var weapon_kick_pos_current: Vector3 = Vector3.ZERO
@@ -139,6 +169,11 @@ var damage_overlay_intensity: float = 0.0
 var damage_arrow_intensity: float = 0.0
 var last_damage_source_pos: Vector3 = Vector3.ZERO
 var low_health_intensity: float = 0.0
+var death_active: bool = false
+var death_cam_active: bool = false
+var death_timer: float = 0.0
+var death_overlay_alpha: float = 0.0
+var death_head_tween: Tween = null
 
 func _ready() -> void:
 	rng.randomize()
@@ -174,25 +209,45 @@ func _ready() -> void:
 	if body_skin_loaded:
 		mesh.visible = false
 	if camera:
+		head_base_pos = head.position
+		head_base_rot = head.rotation
 		camera_base_pos = camera.position
 		camera_base_fov = camera.fov
+	if body:
+		body_base_pos = body.position
+		body_base_rot = body.rotation
 	if weapon:
 		weapon_base_pos = weapon.position
 		weapon_base_rot = weapon.rotation
+	if mesh:
+		mesh_base_pos = mesh.position
+		mesh_base_rot = mesh.rotation
+	if death_overlay:
+		death_overlay.visible = false
+		var overlay_color := death_overlay.modulate
+		overlay_color.a = 0.0
+		death_overlay.modulate = overlay_color
+	if death_title:
+		death_title.visible = false
+	if death_subtitle:
+		death_subtitle.visible = false
 
 func _input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
 		return
 
-	if event is InputEventMouseMotion:
-		look_yaw -= event.relative.x * mouse_sensitivity
-		look_pitch -= event.relative.y * mouse_sensitivity
-		look_pitch = clamp(look_pitch, -max_pitch, max_pitch)
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		else:
 			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+		return
+	if dead:
+		return
+	if event is InputEventMouseMotion:
+		look_yaw -= event.relative.x * mouse_sensitivity
+		look_pitch -= event.relative.y * mouse_sensitivity
+		look_pitch = clamp(look_pitch, -max_pitch, max_pitch)
 
 func _physics_process(delta: float) -> void:
 	if is_multiplayer_authority():
@@ -201,6 +256,11 @@ func _physics_process(delta: float) -> void:
 		_process_remote(delta)
 
 func _process_local(delta: float) -> void:
+	if dead:
+		_update_death_sequence(delta)
+		velocity = Vector3.ZERO
+		return
+
 	_update_recoil(delta)
 	_apply_look()
 	_handle_fire(delta)
@@ -208,10 +268,6 @@ func _process_local(delta: float) -> void:
 	_update_sprint_fov(delta)
 	_update_ads(delta)
 	_update_damage_feedback(delta)
-
-	if dead:
-		velocity = Vector3.ZERO
-		return
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -466,12 +522,13 @@ func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false,
 
 	last_damage_from = _from_peer_id
 	last_hit_was_headshot = headshot
+	last_damage_source_pos = source_pos
 	health = max(health - int(round(amount)), 0)
 	_sync_health_to_owner()
 	_send_damage_indicator(source_pos)
 	if health <= 0:
 		dead = true
-		rpc("set_dead", true)
+		rpc("set_dead", true, last_damage_from, headshot, source_pos)
 		emit_signal("died", self, last_damage_from)
 
 func _sync_health_to_owner() -> void:
@@ -537,17 +594,28 @@ func client_hit_confirm() -> void:
 	_show_hit_marker()
 
 @rpc("any_peer", "reliable", "call_local")
-func set_dead(value: bool) -> void:
+func set_dead(value: bool, killer_id: int = 0, headshot: bool = false, source_pos: Vector3 = Vector3.ZERO) -> void:
 	dead = value
-	mesh.visible = (not value) and (not is_multiplayer_authority()) and (not body_skin_loaded)
-	if body:
-		body.visible = (not value) and (show_own_body or (not is_multiplayer_authority()))
-	if weapon:
-		weapon.visible = (not value) and is_multiplayer_authority()
+	if value:
+		_start_death_sequence(killer_id, headshot, source_pos)
+		if mesh:
+			mesh.visible = false
+		if body:
+			body.visible = false
+		if weapon:
+			weapon.visible = false
+	else:
+		mesh.visible = (not body_skin_loaded) and (not is_multiplayer_authority())
+		if body:
+			body.visible = (not is_multiplayer_authority()) or show_own_body
+		if weapon:
+			weapon.visible = is_multiplayer_authority()
 	collision_layer = 0 if value else default_collision_layer
 	collision_mask = 0 if value else default_collision_mask
 	if value:
 		velocity = Vector3.ZERO
+	else:
+		_reset_death_sequence()
 
 @rpc("any_peer", "reliable", "call_local")
 func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
@@ -556,15 +624,26 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 	dead = false
 	health = new_health
 	last_hit_was_headshot = false
+	last_damage_source_pos = Vector3.ZERO
 	mesh.visible = (not is_multiplayer_authority()) and (not body_skin_loaded)
 	if body:
 		body.visible = show_own_body or (not is_multiplayer_authority())
 	if weapon:
 		weapon.visible = is_multiplayer_authority()
+	if head:
+		head.position = head_base_pos
+		head.rotation = head_base_rot
+	if body:
+		body.position = body_base_pos
+		body.rotation = body_base_rot
+	if mesh:
+		mesh.position = mesh_base_pos
+		mesh.rotation = mesh_base_rot
 	collision_layer = default_collision_layer
 	collision_mask = default_collision_mask
 	remote_target_transform = spawn_transform
 	remote_target_pitch = 0.0
+	_reset_death_sequence()
 	if is_multiplayer_authority():
 		look_pitch = 0.0
 		recoil_pitch = 0.0
@@ -574,6 +653,145 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 		damage_arrow_intensity = 0.0
 		_set_damage_arrow_intensity(0.0)
 		_apply_low_health_overlay()
+
+func _start_death_sequence(killer_id: int, headshot: bool, source_pos: Vector3) -> void:
+	if death_active:
+		return
+	death_active = true
+	death_cam_active = false
+	death_timer = 0.0
+	last_damage_source_pos = source_pos
+	_play_death_animation(headshot, source_pos)
+	if is_multiplayer_authority():
+		_show_death_screen(killer_id)
+		_play_death_camera_fall(headshot)
+
+func _reset_death_sequence() -> void:
+	death_active = false
+	death_cam_active = false
+	death_timer = 0.0
+	death_overlay_alpha = 0.0
+	if death_head_tween:
+		death_head_tween.kill()
+		death_head_tween = null
+	if death_camera and is_multiplayer_authority():
+		death_camera.current = false
+	if camera and is_multiplayer_authority():
+		camera.current = true
+	if is_multiplayer_authority():
+		if death_overlay:
+			death_overlay.visible = false
+			_apply_death_overlay_alpha()
+		if death_title:
+			death_title.visible = false
+		if death_subtitle:
+			death_subtitle.visible = false
+
+func _update_death_sequence(delta: float) -> void:
+	if not death_active or not is_multiplayer_authority():
+		return
+	death_timer += delta
+	if death_overlay:
+		death_overlay_alpha = min(death_overlay_max, death_overlay_alpha + death_overlay_fade * delta)
+		_apply_death_overlay_alpha()
+	if not death_cam_active and death_camera and death_timer >= death_camera_delay:
+		_activate_death_camera()
+	if death_cam_active:
+		_update_death_camera(delta)
+
+func _play_death_animation(headshot: bool, _source_pos: Vector3) -> void:
+	_spawn_death_burst(headshot)
+
+func _spawn_death_burst(headshot: bool) -> void:
+	var base_node: Node3D = null
+	if body_skin_loaded and body:
+		base_node = body
+	elif mesh:
+		base_node = mesh
+	elif body:
+		base_node = body
+	if base_node == null:
+		return
+	var parent_node: Node = get_node_or_null("/root/Main/World")
+	if parent_node == null:
+		parent_node = get_tree().current_scene
+	if parent_node == null:
+		return
+	var burst: Node3D = DEATH_BURST_SCRIPT.new()
+	var headshot_multiplier := 1.3 if headshot else 1.0
+	burst.cube_count = death_burst_count
+	burst.cube_size = death_burst_size
+	burst.speed_min = death_burst_speed_min * headshot_multiplier
+	burst.speed_max = death_burst_speed_max * headshot_multiplier
+	burst.upward_bias = death_burst_upward
+	burst.gravity = death_burst_gravity
+	burst.lifetime = death_burst_lifetime
+	burst.fade_time = death_burst_fade_time
+	burst.base_color = death_burst_color
+	burst.global_transform = base_node.global_transform
+	parent_node.add_child(burst)
+
+func _play_death_camera_fall(headshot: bool) -> void:
+	if head == null:
+		return
+	if death_head_tween:
+		death_head_tween.kill()
+	var pitch := death_headshot_pitch if headshot else death_head_pitch
+	var target_pos := head_base_pos + Vector3(0.0, -death_head_drop, 0.0)
+	death_head_tween = create_tween()
+	death_head_tween.tween_property(head, "rotation", Vector3(pitch, 0.0, 0.0), death_fall_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	death_head_tween.parallel().tween_property(head, "position", target_pos, death_fall_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+func _activate_death_camera() -> void:
+	if death_camera == null:
+		return
+	death_cam_active = true
+	death_camera.current = true
+	if camera:
+		camera.current = false
+
+func _update_death_camera(delta: float) -> void:
+	if death_camera == null:
+		return
+	var target_height := head_base_pos.y if head else 1.2
+	var target := global_transform.origin + Vector3(0.0, target_height, 0.0)
+	var backward := global_transform.basis.z
+	backward.y = 0.0
+	if backward.length() <= 0.01:
+		backward = Vector3(0.0, 0.0, 1.0)
+	else:
+		backward = backward.normalized()
+	var desired := target + backward * death_camera_distance
+	desired.y = target.y + death_camera_height
+	death_camera.global_position = death_camera.global_position.lerp(
+		desired,
+		min(1.0, delta * death_camera_smooth)
+	)
+	death_camera.look_at(target, Vector3.UP)
+
+func _show_death_screen(killer_id: int) -> void:
+	if death_overlay:
+		death_overlay.visible = true
+		death_overlay_alpha = 0.0
+		_apply_death_overlay_alpha()
+	if death_title:
+		death_title.visible = true
+		death_title.text = "YOU DIED"
+	if death_subtitle:
+		death_subtitle.visible = true
+		death_subtitle.text = "Killed by %s" % _format_killer_name(killer_id)
+
+func _format_killer_name(killer_id: int) -> String:
+	if killer_id <= 0:
+		return "World"
+	return "Player %d" % killer_id
+
+func _apply_death_overlay_alpha() -> void:
+	if death_overlay == null:
+		return
+	var overlay_color := death_overlay.modulate
+	overlay_color.a = min(death_overlay_alpha, death_overlay_max)
+	death_overlay.modulate = overlay_color
 
 func _set_local_health(value: int) -> void:
 	var label: Label = get_node_or_null("/root/Main/HUD/HealthLabel") as Label
@@ -893,7 +1111,12 @@ func _build_query_exclude() -> Array[RID]:
 	return exclude
 
 func _update_hitbox_debug(hitbox: Area3D, size: Vector3, color: Color) -> void:
-	if not debug_hitboxes or hitbox == null:
+	if hitbox == null:
+		return
+	if not debug_hitboxes:
+		var existing: MeshInstance3D = hitbox.get_node_or_null("DebugMesh") as MeshInstance3D
+		if existing:
+			existing.queue_free()
 		return
 	var mesh_instance: MeshInstance3D = hitbox.get_node_or_null("DebugMesh") as MeshInstance3D
 	if mesh_instance == null:

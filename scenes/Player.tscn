@@ -101,3 +101,7 @@ material_override = SubResource(4)
 
 [node name="Muzzle" type="Marker3D" parent="Head/Camera3D/Weapon"]
 position = Vector3(0, 0.02, -0.45)
+
+[node name="DeathCamera" type="Camera3D" parent="."]
+current = false
+position = Vector3(0, 1.4, 3.2)
