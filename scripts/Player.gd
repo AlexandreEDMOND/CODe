@@ -64,10 +64,11 @@ const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
 @export var weapon_kick_return := 14.0
 @export var ads_fov := 55.0
 @export var ads_fov_smooth := 12.0
-@export var ads_weapon_pos := Vector3(0.02, -0.14, -0.25)
+@export var ads_weapon_pos := Vector3(0, -0.21, -0.25)
 @export var ads_weapon_rot := Vector3(0.0, 0.0, 0.0)
 @export var ads_weapon_smooth := 12.0
 @export var ads_move_multiplier := 0.6
+@export var ads_sensitivity_multiplier := 0.6
 @export var damage_overlay_fade := 1.0
 @export var damage_arrow_fade := 0.5
 @export var low_health_start_ratio := 0.4
@@ -241,8 +242,11 @@ func _input(event: InputEvent) -> void:
 	if dead or menu_open:
 		return
 	if event is InputEventMouseMotion:
-		look_yaw -= event.relative.x * mouse_sensitivity
-		look_pitch -= event.relative.y * mouse_sensitivity
+		var sens: float = mouse_sensitivity
+		if ads_blend > 0.0:
+			sens = lerp(mouse_sensitivity, mouse_sensitivity * ads_sensitivity_multiplier, ads_blend)
+		look_yaw -= event.relative.x * sens
+		look_pitch -= event.relative.y * sens
 		look_pitch = clamp(look_pitch, -max_pitch, max_pitch)
 
 func _physics_process(delta: float) -> void:
@@ -361,9 +365,10 @@ func _update_damage_feedback(delta: float) -> void:
 func _update_weapon_bob(delta: float, intensity: float, moving: bool) -> void:
 	if weapon == null:
 		return
+	var ads_lock: bool = ads_blend > 0.01
 	weapon_kick_pos_current = weapon_kick_pos_current.lerp(Vector3.ZERO, min(1.0, delta * weapon_kick_return))
 	weapon_kick_rot_current = weapon_kick_rot_current.lerp(Vector3.ZERO, min(1.0, delta * weapon_kick_return))
-	if weapon_bob_enabled:
+	if weapon_bob_enabled and not ads_lock:
 		if moving:
 			var pos_target := Vector3(
 				headbob_offset.x * weapon_bob_pos_scale.x,
@@ -845,6 +850,9 @@ func get_display_name() -> String:
 	if display_name.strip_edges() != "":
 		return display_name
 	return "Player %d" % get_multiplayer_authority()
+
+func get_weapon_skin_seed() -> int:
+	return weapon_skin_seed
 
 func _update_low_health_overlay(value: int) -> void:
 	if low_health_overlay == null:

@@ -32,13 +32,16 @@ Au premier lancement, un import des assets est fait automatiquement pour eviter 
 - Space: saut
 - Souris: viser
 - Click gauche: tirer
+- Click droit ou V: visee
 - Esc: libere/capture la souris
+- Tab: tableau des scores
 
 ## Structure
 - `scenes/Main.tscn`: gestion reseau + spawns
 - `scripts/Player.gd`: mouvement FPS + tir realiste (recul, dispersion, falloff)
 - `scripts/Bot.gd`: bots statiques (cibles)
 - `scenes/Map.tscn`: petite map statique
+- Minimap ronde en haut a droite, orientee avec la camera, affiche les ennemis seulement quand ils tirent
 
 ## Hyperparametres (a tester/modifier)
 Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le feeling du tir.
@@ -68,9 +71,7 @@ Gameplay :
 
 - Détailler les conditions dans le readme pour se connecter en join (meme wifi ? meme version godot ? possible avec le meme ordi ?)
 
-- Regler le viseur, mettre l'arme un peu plus en bas et à gauche. Arreter de la faire bouger quand on est en mode viseur.
-
-- Ajouter une 2eme arme, le sniper avec le skin blaster f, on peut changer d'arme en appuyant sur la touche E. Le sniper one-shot, a beaucoup de dispertion sans viser et une precision parfaite en viser. Il y a du temps entre 2 tirs
+- Ajouter une 2eme arme, le sniper avec le skin blaster f, on peut changer d'arme en appuyant sur la touche E. Le sniper one-shot, a beaucoup de dispertion sans viser et une precision parfaite en viser. Il y a du temps entre 2 tirs. Il a un viseur expres de sniper où l'on voit a travers une lunettre ronde et le reste est noir.
 
 - Rajouter les munitions en bas à gauche, on peut racharger en appuyant sur R. On commencer avec 1000 munitions. L'arme principale tire 30 balles avant de recharger, le sniper 5.
 

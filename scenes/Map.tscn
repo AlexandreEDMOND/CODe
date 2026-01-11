@@ -102,6 +102,7 @@ material_override = SubResource(19)
 position = Vector3(0, 3, -60)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="WallNorth"]
 shape = SubResource(3)
@@ -114,6 +115,7 @@ material_override = SubResource(20)
 position = Vector3(0, 3, 60)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="WallSouth"]
 shape = SubResource(3)
@@ -126,6 +128,7 @@ material_override = SubResource(20)
 position = Vector3(60, 3, 0)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="WallEast"]
 shape = SubResource(5)
@@ -138,6 +141,7 @@ material_override = SubResource(20)
 position = Vector3(-60, 3, 0)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="WallWest"]
 shape = SubResource(5)
@@ -150,6 +154,7 @@ material_override = SubResource(20)
 position = Vector3(0, 2, 0)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CentralBlock"]
 shape = SubResource(7)
@@ -162,6 +167,7 @@ material_override = SubResource(20)
 position = Vector3(35, 2, 0)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="EastBlock"]
 shape = SubResource(9)
@@ -174,6 +180,7 @@ material_override = SubResource(22)
 position = Vector3(-35, 2, 0)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="WestBlock"]
 shape = SubResource(9)
@@ -186,6 +193,7 @@ material_override = SubResource(22)
 position = Vector3(0, 1, -30)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="NorthPlatform"]
 shape = SubResource(11)
@@ -198,6 +206,7 @@ material_override = SubResource(21)
 position = Vector3(0, 1, 30)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="SouthPlatform"]
 shape = SubResource(11)
@@ -210,6 +219,7 @@ material_override = SubResource(21)
 position = Vector3(0, 1.5, -12)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="LaneWallA"]
 shape = SubResource(13)
@@ -223,6 +233,7 @@ position = Vector3(0, 1.5, 12)
 rotation = Vector3(0, 1.5708, 0)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="LaneWallB"]
 shape = SubResource(13)
@@ -235,6 +246,7 @@ material_override = SubResource(23)
 position = Vector3(20, 1, -20)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CoverA"]
 shape = SubResource(15)
@@ -247,6 +259,7 @@ material_override = SubResource(21)
 position = Vector3(-20, 1, 20)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CoverB"]
 shape = SubResource(15)
@@ -259,6 +272,7 @@ material_override = SubResource(21)
 position = Vector3(20, 1, 20)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CoverC"]
 shape = SubResource(15)
@@ -271,6 +285,7 @@ material_override = SubResource(21)
 position = Vector3(-20, 1, -20)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CoverD"]
 shape = SubResource(15)
@@ -283,6 +298,7 @@ material_override = SubResource(21)
 position = Vector3(30, 3, 30)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TowerA"]
 shape = SubResource(17)
@@ -295,6 +311,7 @@ material_override = SubResource(20)
 position = Vector3(-30, 3, -30)
 collision_layer = 1
 collision_mask = 7
+groups = ["minimap_obstacle"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="TowerB"]
 shape = SubResource(17)

@@ -24,7 +24,7 @@ extends Node3D
 @onready var sensitivity_slider := $HUD/PauseMenu/Panel/MenuHBox/LeftVBox/SensitivityRow/SensitivitySlider
 @onready var sensitivity_value := $HUD/PauseMenu/Panel/MenuHBox/LeftVBox/SensitivityRow/SensitivityValue
 @onready var character_skin_option := $HUD/PauseMenu/Panel/MenuHBox/LeftVBox/CharacterRow/CharacterSkinOption
-@onready var weapon_skin_option := $HUD/PauseMenu/Panel/MenuHBox/LeftVBox/WeaponRow/WeaponSkinOption
+@onready var weapon_skin_option := get_node_or_null("HUD/PauseMenu/Panel/MenuHBox/LeftVBox/WeaponRow/WeaponSkinOption")
 @onready var close_button := $HUD/PauseMenu/Panel/MenuHBox/LeftVBox/ButtonsRow/CloseButton
 @onready var preview_pivot := $HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport/PreviewRoot/PreviewPivot
 @onready var preview_camera := $HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport/PreviewRoot/PreviewCamera
@@ -368,7 +368,11 @@ func _apply_menu_cosmetics() -> void:
 	if name_edit:
 		name_value = name_edit.text
 	var char_index := _get_selected_index(character_skin_option)
-	var weapon_index := _get_selected_index(weapon_skin_option)
+	var weapon_index := 0
+	if weapon_skin_option:
+		weapon_index = _get_selected_index(weapon_skin_option)
+	elif player.has_method("get_weapon_skin_seed"):
+		weapon_index = player.get_weapon_skin_seed()
 	if player.has_method("request_cosmetics"):
 		player.request_cosmetics(name_value, char_index, weapon_index)
 
@@ -388,7 +392,7 @@ func _on_sensitivity_changed(value: float) -> void:
 func _populate_menu_options() -> void:
 	if character_skin_files.is_empty():
 		character_skin_files = _list_glb_files("res://models/characters/Models/GLB format", "character-")
-	if weapon_skin_files.is_empty():
+	if weapon_skin_option and weapon_skin_files.is_empty():
 		weapon_skin_files = _list_glb_files("res://models/weapons/Models/GLB format", "blaster-")
 	if character_skin_option and character_skin_option.get_item_count() == 0:
 		for i in range(character_skin_files.size()):
@@ -428,7 +432,15 @@ func _on_character_skin_selected(index: int) -> void:
 	_apply_menu_cosmetics()
 
 func _on_weapon_skin_selected(_index: int) -> void:
-	_apply_menu_cosmetics()
+	var player = _get_local_player()
+	if player == null:
+		return
+	var name_value := ""
+	if name_edit:
+		name_value = name_edit.text
+	var char_index := _get_selected_index(character_skin_option)
+	if player.has_method("request_cosmetics"):
+		player.request_cosmetics(name_value, char_index, _index)
 
 func _seed_to_index(seed: int, count: int) -> int:
 	if count <= 0:
