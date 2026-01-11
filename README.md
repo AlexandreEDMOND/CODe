@@ -62,15 +62,9 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-- Avoir du recul avec l'arme, comme dans CS-GO, le joueur ne bouge pas, mais la camera monte un peu et va legerement a gauche ou a droite aléatoirement. 
-
-- Pouvoir viser avec le clic droit. En mode viseur, on a un viseur et la camera zoom un peu comme dans les jeux. On voit a travers le viseur de l'arme
-  
-- Ajouter un peu de dispertion quand on tire sans viser et avoir une precision parfaite quand on vise
-- Viser fait ralentir le joueur dans ces déplacements
    
 - Quand on fait option, un menu s'ouvre et on peut changer son skin.
-- Ajouter 2 autres armes, on peut changer d'areme en appuyant sur la touche E
+- Ajouter 2 autres armes, on peut changer d'arme en appuyant sur la touche E
 
 Design :
-- Animation fluide quand on passe en mode viseur et quand on le quitte
+- chercher de nouvelle texture

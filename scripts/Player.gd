@@ -18,7 +18,8 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @export var mouse_sensitivity := 0.0025
 @export var max_pitch := 1.4
 @export var fire_rate := 10.0
-@export var spread_degrees := 0.0
+@export var spread_degrees := 1.2
+@export var ads_spread_multiplier := 0.0
 @export var recoil_kick_pitch := 2.2
 @export var recoil_kick_yaw := 0.9
 @export var recoil_return_speed := 10.0
@@ -56,6 +57,15 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @export var weapon_bob_pos_scale := Vector3(0.6, 0.5, 0.0)
 @export var weapon_bob_rot_scale := Vector3(1.6, 1.0, 1.2)
 @export var weapon_bob_smooth := 10.0
+@export var weapon_kick_pos := Vector3(0.0, 0.0, 0.08)
+@export var weapon_kick_rot := Vector3(2.0, 0.8, 0.0)
+@export var weapon_kick_return := 14.0
+@export var ads_fov := 55.0
+@export var ads_fov_smooth := 12.0
+@export var ads_weapon_pos := Vector3(0.02, -0.14, -0.25)
+@export var ads_weapon_rot := Vector3(0.0, 0.0, 0.0)
+@export var ads_weapon_smooth := 12.0
+@export var ads_move_multiplier := 0.6
 @export var show_own_body := false
 @export var character_skin_scale := 1.0
 @export var weapon_skin_scale := 1.0
@@ -115,6 +125,9 @@ var weapon_base_pos: Vector3 = Vector3.ZERO
 var weapon_base_rot: Vector3 = Vector3.ZERO
 var weapon_bob_pos: Vector3 = Vector3.ZERO
 var weapon_bob_rot: Vector3 = Vector3.ZERO
+var weapon_kick_pos_current: Vector3 = Vector3.ZERO
+var weapon_kick_rot_current: Vector3 = Vector3.ZERO
+var ads_blend: float = 0.0
 
 func _ready() -> void:
 	rng.randomize()
@@ -182,6 +195,7 @@ func _process_local(delta: float) -> void:
 	_handle_fire(delta)
 	_update_headbob(delta)
 	_update_sprint_fov(delta)
+	_update_ads(delta)
 
 	if dead:
 		velocity = Vector3.ZERO
@@ -201,7 +215,12 @@ func _process_local(delta: float) -> void:
 
 	if input_dir.length() > 0.01:
 		input_dir = input_dir.normalized()
-		var speed := sprint_speed if Input.is_action_pressed("sprint") else move_speed
+		var aiming: bool = Input.is_action_pressed("aim")
+		var speed := move_speed
+		if not aiming and Input.is_action_pressed("sprint"):
+			speed = sprint_speed
+		if aiming:
+			speed *= ads_move_multiplier
 		var basis := global_transform.basis
 		var direction := (basis * input_dir).normalized()
 		velocity.x = direction.x * speed
@@ -251,32 +270,52 @@ func _update_headbob(delta: float) -> void:
 func _update_sprint_fov(delta: float) -> void:
 	if camera == null:
 		return
+	if ads_blend > 0.0:
+		return
 	var speed: float = Vector3(velocity.x, 0.0, velocity.z).length()
 	var sprinting: bool = is_on_floor() and speed > 0.1 and Input.is_action_pressed("sprint")
 	var target_fov: float = camera_base_fov + (sprint_fov_boost if sprinting else 0.0)
 	camera.fov = lerp(camera.fov, target_fov, min(1.0, delta * sprint_fov_smooth))
 
 func _update_weapon_bob(delta: float, intensity: float, moving: bool) -> void:
-	if not weapon_bob_enabled or weapon == null:
+	if weapon == null:
 		return
-	if moving:
-		var pos_target := Vector3(
-			headbob_offset.x * weapon_bob_pos_scale.x,
-			headbob_offset.y * weapon_bob_pos_scale.y,
-			headbob_offset.z * weapon_bob_pos_scale.z
-		)
-		var rot_target := Vector3(
-			deg_to_rad(weapon_bob_rot_scale.x) * sin(headbob_phase * 2.0) * intensity,
-			deg_to_rad(weapon_bob_rot_scale.y) * cos(headbob_phase) * intensity,
-			deg_to_rad(weapon_bob_rot_scale.z) * sin(headbob_phase) * intensity
-		)
-		weapon_bob_pos = weapon_bob_pos.lerp(pos_target, min(1.0, delta * weapon_bob_smooth))
-		weapon_bob_rot = weapon_bob_rot.lerp(rot_target, min(1.0, delta * weapon_bob_smooth))
+	weapon_kick_pos_current = weapon_kick_pos_current.lerp(Vector3.ZERO, min(1.0, delta * weapon_kick_return))
+	weapon_kick_rot_current = weapon_kick_rot_current.lerp(Vector3.ZERO, min(1.0, delta * weapon_kick_return))
+	if weapon_bob_enabled:
+		if moving:
+			var pos_target := Vector3(
+				headbob_offset.x * weapon_bob_pos_scale.x,
+				headbob_offset.y * weapon_bob_pos_scale.y,
+				headbob_offset.z * weapon_bob_pos_scale.z
+			)
+			var rot_target := Vector3(
+				deg_to_rad(weapon_bob_rot_scale.x) * sin(headbob_phase * 2.0) * intensity,
+				deg_to_rad(weapon_bob_rot_scale.y) * cos(headbob_phase) * intensity,
+				deg_to_rad(weapon_bob_rot_scale.z) * sin(headbob_phase) * intensity
+			)
+			weapon_bob_pos = weapon_bob_pos.lerp(pos_target, min(1.0, delta * weapon_bob_smooth))
+			weapon_bob_rot = weapon_bob_rot.lerp(rot_target, min(1.0, delta * weapon_bob_smooth))
+		else:
+			weapon_bob_pos = weapon_bob_pos.lerp(Vector3.ZERO, min(1.0, delta * weapon_bob_smooth))
+			weapon_bob_rot = weapon_bob_rot.lerp(Vector3.ZERO, min(1.0, delta * weapon_bob_smooth))
 	else:
 		weapon_bob_pos = weapon_bob_pos.lerp(Vector3.ZERO, min(1.0, delta * weapon_bob_smooth))
 		weapon_bob_rot = weapon_bob_rot.lerp(Vector3.ZERO, min(1.0, delta * weapon_bob_smooth))
-	weapon.position = weapon_base_pos + weapon_bob_pos
-	weapon.rotation = weapon_base_rot + weapon_bob_rot
+	var ads_pos := weapon_base_pos.lerp(ads_weapon_pos, ads_blend)
+	var ads_rot := weapon_base_rot.lerp(ads_weapon_rot, ads_blend)
+	weapon.position = ads_pos + weapon_bob_pos + weapon_kick_pos_current
+	weapon.rotation = ads_rot + weapon_bob_rot + weapon_kick_rot_current
+
+func _update_ads(delta: float) -> void:
+	if not is_multiplayer_authority() or camera == null:
+		return
+	var aiming: bool = Input.is_action_pressed("aim")
+	var target: float = 1.0 if aiming else 0.0
+	ads_blend = move_toward(ads_blend, target, ads_weapon_smooth * delta)
+	var base_fov: float = camera_base_fov + (sprint_fov_boost if Input.is_action_pressed("sprint") else 0.0)
+	var target_fov: float = lerp(base_fov, ads_fov, ads_blend)
+	camera.fov = lerp(camera.fov, target_fov, min(1.0, delta * ads_fov_smooth))
 
 func _handle_fire(delta: float) -> void:
 	fire_cooldown = max(0.0, fire_cooldown - delta)
@@ -319,11 +358,21 @@ func _apply_recoil_kick() -> void:
 	look_yaw += camera_yaw
 	recoil_pitch += pitch_rad * recoil_kick_scale
 	recoil_yaw += yaw_rad * recoil_kick_scale
+	if weapon:
+		weapon_kick_pos_current += weapon_kick_pos
+		weapon_kick_rot_current += Vector3(
+			deg_to_rad(weapon_kick_rot.x),
+			deg_to_rad(weapon_kick_rot.y) * rng.randf_range(-1.0, 1.0),
+			deg_to_rad(weapon_kick_rot.z)
+		)
 
 func _get_spread_direction() -> Vector3:
-	if spread_degrees <= 0.0:
+	var spread: float = spread_degrees
+	if ads_blend > 0.0:
+		spread = spread_degrees * ads_spread_multiplier
+	if spread <= 0.0:
 		return -camera.global_transform.basis.z
-	var spread_rad: float = deg_to_rad(spread_degrees)
+	var spread_rad: float = deg_to_rad(spread)
 	var spread_x: float = rng.randfn(0.0, spread_rad)
 	var spread_y: float = rng.randfn(0.0, spread_rad)
 	var basis: Basis = camera.global_transform.basis

@@ -68,6 +68,15 @@ func _ensure_input_actions() -> void:
 		if not InputMap.action_has_event("fire", mouse_ev):
 			InputMap.action_add_event("fire", mouse_ev)
 
+	if not InputMap.has_action("aim"):
+		InputMap.add_action("aim")
+		var aim_ev := InputEventMouseButton.new()
+		aim_ev.button_index = MOUSE_BUTTON_RIGHT
+		InputMap.action_add_event("aim", aim_ev)
+		var aim_key := InputEventKey.new()
+		aim_key.keycode = KEY_V
+		InputMap.action_add_event("aim", aim_key)
+
 func _start_host() -> void:
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(server_port, max_clients)
