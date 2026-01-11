@@ -22,6 +22,8 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @export var recoil_kick_pitch := 2.2
 @export var recoil_kick_yaw := 0.9
 @export var recoil_return_speed := 10.0
+@export var recoil_camera_scale := 0.25
+@export var recoil_kick_scale := 0.6
 @export var max_distance := 200.0
 @export var base_damage := 25.0
 @export var min_damage := 12.0
@@ -309,8 +311,14 @@ func _handle_fire(delta: float) -> void:
 func _apply_recoil_kick() -> void:
 	var pitch_kick: float = recoil_kick_pitch * rng.randf_range(0.85, 1.15)
 	var yaw_kick: float = recoil_kick_yaw * rng.randf_range(-1.0, 1.0)
-	recoil_pitch += deg_to_rad(pitch_kick)
-	recoil_yaw += deg_to_rad(yaw_kick)
+	var pitch_rad: float = deg_to_rad(pitch_kick)
+	var yaw_rad: float = deg_to_rad(yaw_kick)
+	var camera_pitch: float = pitch_rad * recoil_camera_scale
+	var camera_yaw: float = yaw_rad * recoil_camera_scale
+	look_pitch = clamp(look_pitch + camera_pitch, -max_pitch, max_pitch)
+	look_yaw += camera_yaw
+	recoil_pitch += pitch_rad * recoil_kick_scale
+	recoil_yaw += yaw_rad * recoil_kick_scale
 
 func _get_spread_direction() -> Vector3:
 	if spread_degrees <= 0.0:

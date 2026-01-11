@@ -74,4 +74,3 @@ Gameplay :
 
 Design :
 - Animation fluide quand on passe en mode viseur et quand on le quitte
-- Arme qui bouge quand on avance
