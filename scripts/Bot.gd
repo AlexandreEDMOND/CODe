@@ -3,8 +3,11 @@ extends CharacterBody3D
 signal died(bot, killer_id)
 
 const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
+const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 const LAYER_HITBOX := 8
 const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
+const DEFAULT_WEAPON_SKIN := "blaster-d.glb"
+const LAYER_WORLD := 1
 
 @export var max_health := 100
 @export var character_skin_scale := 1.0
@@ -14,6 +17,8 @@ const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
 @export var torso_depth_ratio := 0.85
 @export var leg_height_ratio := 0.45
 @export var debug_hitboxes := false
+@export var weapon_skin_scale := 1.0
+@export var weapon_skin_seed := 0
 @export var death_burst_count := 14
 @export var death_burst_size := 0.12
 @export var death_burst_speed_min := 3.0
@@ -37,6 +42,7 @@ const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
 
 @onready var mesh: MeshInstance3D = $Mesh
 @onready var body: Node3D = $Body
+@onready var weapon: Node3D = $Body/Weapon
 @onready var body_collision: CollisionShape3D = $CollisionShape3D
 @onready var head_hitbox: Area3D = $HeadHitbox
 @onready var head_collision: CollisionShape3D = $HeadHitbox/CollisionShape3D
@@ -79,6 +85,7 @@ func _ready() -> void:
 	if skin_seed == 0:
 		skin_seed = _extract_bot_id()
 	_apply_skin()
+	_apply_weapon_skin()
 	if body_skin_loaded:
 		mesh.visible = false
 	if body:
@@ -149,12 +156,33 @@ func _update_shooting(delta: float) -> void:
 		return
 	if target.dead:
 		return
+	var target_pos := _get_target_position(target)
+	if not _has_line_of_sight(target_pos):
+		return
 	if shoot_body_only:
 		var torso_hitbox: Area3D = target.get_node_or_null("TorsoHitbox") as Area3D
 		if torso_hitbox and torso_hitbox.has_method("apply_damage"):
 			torso_hitbox.apply_damage(shoot_damage, 0, false, global_transform.origin)
 			return
 	target.apply_damage(shoot_damage, 0, false, global_transform.origin)
+
+func _get_target_position(target: Node) -> Vector3:
+	var torso_hitbox: Area3D = target.get_node_or_null("TorsoHitbox") as Area3D
+	if torso_hitbox:
+		return torso_hitbox.global_transform.origin
+	return target.global_transform.origin
+
+func _has_line_of_sight(target_pos: Vector3) -> bool:
+	if get_world_3d() == null:
+		return true
+	var origin := global_transform.origin + Vector3(0.0, 1.2, 0.0)
+	var params: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(origin, target_pos)
+	var exclude: Array[RID] = [get_rid()]
+	params.exclude = exclude
+	params.collision_mask = LAYER_WORLD
+	params.collide_with_areas = false
+	var result := get_world_3d().direct_space_state.intersect_ray(params)
+	return result.is_empty()
 
 func _pick_target_player() -> Node:
 	var players_root: Node = get_node_or_null("/root/Main/Players")
@@ -287,6 +315,34 @@ func _apply_skin() -> void:
 	skin_node.scale = Vector3.ONE * character_skin_scale
 	body_skin_loaded = true
 	_update_hitboxes_to_skin(skin_node)
+
+func _apply_weapon_skin() -> void:
+	if weapon == null:
+		return
+	if weapon_skin_seed == 0:
+		weapon_skin_seed = _get_default_weapon_seed()
+	var skin_path: String = _pick_skin_path(WEAPON_SKIN_DIR, "blaster-", weapon_skin_seed)
+	var skin_node: Node3D = _instantiate_skin(skin_path)
+	if skin_node == null:
+		return
+	_clear_weapon_skin()
+	weapon.add_child(skin_node)
+	skin_node.scale = Vector3.ONE * weapon_skin_scale
+
+func _clear_weapon_skin() -> void:
+	if weapon == null:
+		return
+	for child in weapon.get_children():
+		child.queue_free()
+
+func _get_default_weapon_seed() -> int:
+	var files: Array[String] = _list_glb_files(WEAPON_SKIN_DIR, "blaster-")
+	if files.is_empty():
+		return 0
+	for i in range(files.size()):
+		if files[i].get_file().to_lower() == DEFAULT_WEAPON_SKIN:
+			return i
+	return 0
 
 func _extract_bot_id() -> int:
 	if name.begins_with("Bot_"):

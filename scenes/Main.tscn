@@ -157,6 +157,128 @@ horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_colors/font_color = Color(1, 0.2, 0.2, 1)
 
+[node name="PauseMenu" type="Control" parent="HUD"]
+visible = false
+mouse_filter = 2
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+
+[node name="Panel" type="Panel" parent="HUD/PauseMenu"]
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -360.0
+offset_top = -250.0
+offset_right = 360.0
+offset_bottom = 250.0
+
+[node name="MenuHBox" type="HBoxContainer" parent="HUD/PauseMenu/Panel"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+theme_override_constants/separation = 24
+
+[node name="LeftVBox" type="VBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox"]
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="MenuTitle" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox"]
+text = "Menu"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+
+[node name="NameRow" type="HBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox"]
+
+[node name="NameLabel" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/NameRow"]
+text = "Name"
+custom_minimum_size = Vector2(90, 0)
+
+[node name="NameEdit" type="LineEdit" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/NameRow"]
+size_flags_horizontal = 3
+
+[node name="SensitivityRow" type="HBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox"]
+
+[node name="SensitivityLabel" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/SensitivityRow"]
+text = "Sensitivity"
+custom_minimum_size = Vector2(90, 0)
+
+[node name="SensitivitySlider" type="HSlider" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/SensitivityRow"]
+min_value = 0.0
+max_value = 100.0
+step = 1.0
+size_flags_horizontal = 3
+
+[node name="SensitivityValue" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/SensitivityRow"]
+text = "50"
+custom_minimum_size = Vector2(60, 0)
+horizontal_alignment = 2
+
+[node name="CharacterRow" type="HBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox"]
+
+[node name="CharacterLabel" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/CharacterRow"]
+text = "Character"
+custom_minimum_size = Vector2(90, 0)
+
+[node name="CharacterSkinOption" type="OptionButton" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/CharacterRow"]
+size_flags_horizontal = 3
+
+[node name="WeaponRow" type="HBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox"]
+
+[node name="WeaponLabel" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/WeaponRow"]
+text = "Weapon"
+custom_minimum_size = Vector2(90, 0)
+
+[node name="WeaponSkinOption" type="OptionButton" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/WeaponRow"]
+size_flags_horizontal = 3
+
+[node name="ButtonsRow" type="HBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox"]
+alignment = 1
+
+[node name="CloseButton" type="Button" parent="HUD/PauseMenu/Panel/MenuHBox/LeftVBox/ButtonsRow"]
+text = "Close"
+
+[node name="RightVBox" type="VBoxContainer" parent="HUD/PauseMenu/Panel/MenuHBox"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+
+[node name="PreviewLabel" type="Label" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox"]
+text = "Preview"
+
+[node name="PreviewViewportContainer" type="SubViewportContainer" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox"]
+custom_minimum_size = Vector2(0, 320)
+stretch = true
+
+[node name="PreviewViewport" type="SubViewport" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer"]
+transparent_bg = true
+render_target_update_mode = 3
+own_world_3d = true
+size = Vector2i(320, 320)
+
+[node name="PreviewRoot" type="Node3D" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport"]
+
+[node name="PreviewLight" type="DirectionalLight3D" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport/PreviewRoot"]
+rotation = Vector3(-0.9, -0.6, 0.0)
+
+[node name="PreviewPivot" type="Node3D" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport/PreviewRoot"]
+
+[node name="PreviewCamera" type="Camera3D" parent="HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport/PreviewRoot"]
+position = Vector3(0, 1.4, 3.6)
+fov = 35.0
+current = true
+
 [node name="DeathOverlay" type="ColorRect" parent="HUD"]
 visible = false
 color = Color(0, 0, 0, 1)
@@ -199,3 +321,27 @@ text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
 theme_override_font_sizes/font_size = 20
+
+[node name="Scoreboard" type="Panel" parent="HUD"]
+visible = false
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -180.0
+offset_right = 250.0
+offset_bottom = 180.0
+
+[node name="ScoreboardLabel" type="Label" parent="HUD/Scoreboard"]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 0

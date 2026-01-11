@@ -62,15 +62,21 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
+- Map plus grande avec des structure plus nombreuses et plus complexes, rajoute une mini map en haut le point du joueurs et des autres joueurs uniquemment quand ils tirent. La mini map est ronde et bouge en fonction des deplacement du joueurs et de la camera.
 
-- Animation de mort quand on tue quelqu'un ou qu'on se fait tuer
-- Map plus grande
-
-- Quand on fait echap, un menu s'ouvre et on peut changer son skin. On peut aussi regler la sensibilité dans le menu, ainsi que son nom
 - Reduire degats arme principale
-- 
-- Ajouter 2 autres armes, on peut changer d'arme en appuyant sur la touche E
 
+- Avoir une option pour lancer en mode debug avec les 3 bots sans arme et celui avec arme, ou en mode normal où il n'y a pas de bot, et où les joueurs peuvent s'affronter
+
+- Détailler les conditions dans le readme pour se connecter en join (meme wifi ? meme version godot ? possible avec le meme ordi ?)
+
+- Regler le viseur, mettre l'arme un peu plus en bas et à gauche. Arreter de la faire bouger quand on est en mode viseur.
+
+- Ajouter une 2eme arme, le sniper avec le skin blaster f, on peut changer d'arme en appuyant sur la touche E. Le sniper one-shot, a beaucoup de dispertion sans viser et une precision parfaite en viser. Il y a du temps entre 2 tirs
+
+- Rajouter les munitions en bas à gauche, on peut racharger en appuyant sur R. On commencer avec 1000 munitions. L'arme principale tire 30 balles avant de recharger, le sniper 5.
+
+- Ameliorer le menu avec une preview total de tout les skin et on choisis en cliquand sur celui qui parrait le mieux
 
 Design :
-- chercher de nouvelle texture
+- Voir le nouveau dossier building et voir si on peut créer quelque chose de simple à la bonne echelle avec.

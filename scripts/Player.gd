@@ -11,6 +11,7 @@ const CHARACTER_SKIN_DIR := "res://models/characters/Models/GLB format"
 const WEAPON_SKIN_DIR := "res://models/weapons/Models/GLB format"
 const TRACER_SCENE := preload("res://scenes/Tracer.tscn")
 const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
+const DEFAULT_WEAPON_SKIN := "blaster-d.glb"
 const DEATH_BURST_SCRIPT := preload("res://scripts/DeathBurst.gd")
 
 @export var move_speed := 5.0
@@ -174,6 +175,8 @@ var death_cam_active: bool = false
 var death_timer: float = 0.0
 var death_overlay_alpha: float = 0.0
 var death_head_tween: Tween = null
+var menu_open: bool = false
+var display_name: String = ""
 
 func _ready() -> void:
 	rng.randomize()
@@ -188,7 +191,7 @@ func _ready() -> void:
 	if character_skin_seed == 0:
 		character_skin_seed = get_multiplayer_authority()
 	if weapon_skin_seed == 0:
-		weapon_skin_seed = get_multiplayer_authority()
+		weapon_skin_seed = _get_default_weapon_seed()
 	_apply_skins()
 
 	if is_multiplayer_authority():
@@ -235,14 +238,7 @@ func _ready() -> void:
 func _input(event: InputEvent) -> void:
 	if not is_multiplayer_authority():
 		return
-
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-		else:
-			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-		return
-	if dead:
+	if dead or menu_open:
 		return
 	if event is InputEventMouseMotion:
 		look_yaw -= event.relative.x * mouse_sensitivity
@@ -262,12 +258,15 @@ func _process_local(delta: float) -> void:
 		return
 
 	_update_recoil(delta)
+	_update_damage_feedback(delta)
+	if menu_open:
+		velocity = Vector3.ZERO
+		return
 	_apply_look()
 	_handle_fire(delta)
 	_update_headbob(delta)
 	_update_sprint_fov(delta)
 	_update_ads(delta)
-	_update_damage_feedback(delta)
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -799,6 +798,46 @@ func _set_local_health(value: int) -> void:
 		label.text = "HP: %d" % value
 	_update_low_health_overlay(value)
 
+func set_menu_open(value: bool) -> void:
+	if not is_multiplayer_authority():
+		return
+	menu_open = value
+
+func set_mouse_sensitivity(value: float) -> void:
+	if not is_multiplayer_authority():
+		return
+	mouse_sensitivity = max(0.0005, value)
+
+func request_cosmetics(new_name: String, character_index: int, weapon_index: int) -> void:
+	var safe_name := new_name.strip_edges()
+	if multiplayer.is_server():
+		_apply_cosmetics(safe_name, character_index, weapon_index)
+		rpc("client_apply_cosmetics", display_name, character_skin_seed, weapon_skin_seed)
+	else:
+		rpc_id(1, "server_set_cosmetics", safe_name, character_index, weapon_index)
+
+@rpc("any_peer", "reliable")
+func server_set_cosmetics(new_name: String, character_index: int, weapon_index: int) -> void:
+	if not multiplayer.is_server():
+		return
+	_apply_cosmetics(new_name, character_index, weapon_index)
+	rpc("client_apply_cosmetics", display_name, character_skin_seed, weapon_skin_seed)
+
+@rpc("any_peer", "reliable", "call_local")
+func client_apply_cosmetics(new_name: String, character_index: int, weapon_index: int) -> void:
+	_apply_cosmetics(new_name, character_index, weapon_index)
+
+func _apply_cosmetics(new_name: String, character_index: int, weapon_index: int) -> void:
+	display_name = new_name
+	character_skin_seed = character_index
+	weapon_skin_seed = weapon_index
+	_refresh_skins()
+
+func get_display_name() -> String:
+	if display_name.strip_edges() != "":
+		return display_name
+	return "Player %d" % get_multiplayer_authority()
+
 func _update_low_health_overlay(value: int) -> void:
 	if low_health_overlay == null:
 		return
@@ -825,6 +864,17 @@ func _apply_skins() -> void:
 	_apply_character_skin()
 	_apply_weapon_skin()
 
+func _refresh_skins() -> void:
+	_clear_character_skin()
+	_clear_weapon_skin()
+	_apply_skins()
+	if mesh:
+		mesh.visible = (not body_skin_loaded) and (not is_multiplayer_authority())
+	if body:
+		body.visible = (not is_multiplayer_authority()) or show_own_body
+	if weapon:
+		weapon.visible = is_multiplayer_authority()
+
 func _apply_character_skin() -> void:
 	if body == null:
 		return
@@ -836,6 +886,13 @@ func _apply_character_skin() -> void:
 	skin_node.scale = Vector3.ONE * character_skin_scale
 	body_skin_loaded = true
 	_update_hitboxes_to_skin(skin_node)
+
+func _clear_character_skin() -> void:
+	if body == null:
+		return
+	for child in body.get_children():
+		child.queue_free()
+	body_skin_loaded = false
 
 func _apply_weapon_skin() -> void:
 	if weapon == null:
@@ -850,6 +907,27 @@ func _apply_weapon_skin() -> void:
 	weapon.add_child(skin_node)
 	skin_node.scale = Vector3.ONE * weapon_skin_scale
 	weapon_skin_loaded = true
+
+func _clear_weapon_skin() -> void:
+	if weapon == null:
+		return
+	for child in weapon.get_children():
+		if child.name == "Muzzle":
+			continue
+		child.queue_free()
+	if weapon is MeshInstance3D:
+		var weapon_mesh := weapon as MeshInstance3D
+		weapon_mesh.mesh = null
+	weapon_skin_loaded = false
+
+func _get_default_weapon_seed() -> int:
+	var files: Array[String] = _list_glb_files(WEAPON_SKIN_DIR, "blaster-")
+	if files.is_empty():
+		return get_multiplayer_authority()
+	for i in range(files.size()):
+		if files[i].get_file().to_lower() == DEFAULT_WEAPON_SKIN:
+			return i
+	return get_multiplayer_authority()
 
 func _update_hitboxes_to_skin(skin_root: Node3D) -> void:
 	if body_collision == null or head_hitbox == null or head_collision == null:

@@ -29,6 +29,10 @@ mesh = SubResource(2)
 [node name="Body" type="Node3D" parent="."]
 position = Vector3(0, 0, 0)
 
+[node name="Weapon" type="Node3D" parent="Body"]
+position = Vector3(0.35, 1.05, 0.35)
+rotation = Vector3(0.0, 3.14159, 0.0)
+
 [node name="HeadHitbox" type="Area3D" parent="."]
 position = Vector3(0, 1.5, 0)
 collision_layer = 8
