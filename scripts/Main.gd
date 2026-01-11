@@ -3,6 +3,10 @@ extends Node3D
 @export var server_port := 7777
 @export var max_clients := 8
 @export var bot_count := 3
+@export var shooter_bot_enabled := true
+@export var shooter_bot_spawn_index := 4
+@export var shooter_bot_interval := 3.0
+@export var shooter_bot_damage := 12.0
 @export var player_respawn_delay := 2.5
 @export var bot_respawn_delay := 2.0
 @export var player_spawn_index := 0
@@ -90,6 +94,7 @@ func _start_host() -> void:
 
 	_spawn_player(multiplayer.get_unique_id())
 	_spawn_bots()
+	_spawn_shooter_bot()
 	_set_info("Hosting on port %d" % server_port)
 
 func _start_client(ip: String) -> void:
@@ -137,6 +142,13 @@ func _spawn_bots() -> void:
 		rpc("spawn_bot", next_bot_id, spawn_transform, spawn_index)
 		next_bot_id += 1
 
+func _spawn_shooter_bot() -> void:
+	if not multiplayer.is_server() or not shooter_bot_enabled:
+		return
+	var spawn_transform := _get_spawn_transform(shooter_bot_spawn_index)
+	rpc("spawn_shooter_bot", next_bot_id, spawn_transform, shooter_bot_spawn_index)
+	next_bot_id += 1
+
 @rpc("authority", "reliable", "call_local")
 func spawn_bot(bot_id: int, spawn_transform: Transform3D, spawn_index: int) -> void:
 	var bot := bot_scene.instantiate()
@@ -145,6 +157,22 @@ func spawn_bot(bot_id: int, spawn_transform: Transform3D, spawn_index: int) -> v
 	bot.set_multiplayer_authority(1)
 	bot.spawn_index = spawn_index
 	bot.skin_seed = bot_id
+	bots_root.add_child(bot)
+	bot.died.connect(_on_bot_died)
+
+@rpc("authority", "reliable", "call_local")
+func spawn_shooter_bot(bot_id: int, spawn_transform: Transform3D, spawn_index: int) -> void:
+	var bot := bot_scene.instantiate()
+	bot.name = "Bot_Shooter_%d" % bot_id
+	bot.global_transform = spawn_transform
+	bot.set_multiplayer_authority(1)
+	bot.spawn_index = spawn_index
+	bot.skin_seed = bot_id
+	bot.movement_enabled = false
+	bot.jump_enabled = false
+	bot.shooting_enabled = true
+	bot.shoot_interval = shooter_bot_interval
+	bot.shoot_damage = shooter_bot_damage
 	bots_root.add_child(bot)
 	bot.died.connect(_on_bot_died)
 

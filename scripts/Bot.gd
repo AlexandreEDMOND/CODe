@@ -19,6 +19,10 @@ const LAYER_HITBOX := 8
 @export var jump_enabled := true
 @export var jump_interval := 3.0
 @export var jump_velocity := 4.5
+@export var shooting_enabled := false
+@export var shoot_interval := 3.0
+@export var shoot_damage := 12.0
+@export var shoot_body_only := true
 @export var network_send_rate := 12.0
 
 @onready var mesh: MeshInstance3D = $Mesh
@@ -49,6 +53,7 @@ var last_hit_was_headshot: bool = false
 var move_timer: float = 0.0
 var jump_timer: float = 0.0
 var send_timer: float = 0.0
+var shoot_timer: float = 0.0
 var remote_target_transform: Transform3D = Transform3D.IDENTITY
 
 func _ready() -> void:
@@ -64,6 +69,8 @@ func _ready() -> void:
 	remote_target_transform = global_transform
 	if jump_enabled:
 		jump_timer = max(0.2, jump_interval * 0.5)
+	if shooting_enabled:
+		shoot_timer = max(0.2, shoot_interval)
 
 func _physics_process(delta: float) -> void:
 	if multiplayer.is_server():
@@ -107,6 +114,35 @@ func _process_movement(delta: float) -> void:
 			jump_timer = jump_interval
 
 	move_and_slide()
+	_update_shooting(delta)
+
+func _update_shooting(delta: float) -> void:
+	if not shooting_enabled or dead:
+		return
+	shoot_timer -= delta
+	if shoot_timer > 0.0:
+		return
+	shoot_timer = max(0.2, shoot_interval)
+	var target := _pick_target_player()
+	if target == null:
+		return
+	if target.dead:
+		return
+	if shoot_body_only:
+		var torso_hitbox: Area3D = target.get_node_or_null("TorsoHitbox") as Area3D
+		if torso_hitbox and torso_hitbox.has_method("apply_damage"):
+			torso_hitbox.apply_damage(shoot_damage, 0, false, global_transform.origin)
+			return
+	target.apply_damage(shoot_damage, 0, false, global_transform.origin)
+
+func _pick_target_player() -> Node:
+	var players_root: Node = get_node_or_null("/root/Main/Players")
+	if players_root == null:
+		return null
+	for child in players_root.get_children():
+		if child.has_method("apply_damage"):
+			return child
+	return null
 
 func _process_remote(delta: float) -> void:
 	global_transform = global_transform.interpolate_with(
@@ -127,7 +163,7 @@ func client_receive_state(state_transform: Transform3D) -> void:
 		return
 	remote_target_transform = state_transform
 
-func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false) -> void:
+func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false, _source_pos: Vector3 = Vector3.ZERO) -> void:
 	if not multiplayer.is_server():
 		return
 	if dead:

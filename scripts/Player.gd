@@ -66,6 +66,10 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @export var ads_weapon_rot := Vector3(0.0, 0.0, 0.0)
 @export var ads_weapon_smooth := 12.0
 @export var ads_move_multiplier := 0.6
+@export var damage_overlay_fade := 1.0
+@export var damage_arrow_fade := 0.5
+@export var low_health_start_ratio := 0.4
+@export var low_health_max_intensity := 1.0
 @export var show_own_body := false
 @export var character_skin_scale := 1.0
 @export var weapon_skin_scale := 1.0
@@ -91,6 +95,9 @@ const IMPACT_SCENE := preload("res://scenes/Impact.tscn")
 @onready var arm_right_collision: CollisionShape3D = $ArmRightHitbox/CollisionShape3D
 @onready var leg_hitbox: Area3D = $LegHitbox
 @onready var leg_collision: CollisionShape3D = $LegHitbox/CollisionShape3D
+@onready var low_health_overlay: ColorRect = get_node_or_null("/root/Main/HUD/LowHealthOverlay") as ColorRect
+@onready var damage_arrow_pivot: Control = get_node_or_null("/root/Main/HUD/DamageArrowPivot") as Control
+@onready var damage_arrow: ColorRect = get_node_or_null("/root/Main/HUD/DamageArrowPivot/DamageArrow") as ColorRect
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var look_yaw: float = 0.0
@@ -128,6 +135,10 @@ var weapon_bob_rot: Vector3 = Vector3.ZERO
 var weapon_kick_pos_current: Vector3 = Vector3.ZERO
 var weapon_kick_rot_current: Vector3 = Vector3.ZERO
 var ads_blend: float = 0.0
+var damage_overlay_intensity: float = 0.0
+var damage_arrow_intensity: float = 0.0
+var last_damage_source_pos: Vector3 = Vector3.ZERO
+var low_health_intensity: float = 0.0
 
 func _ready() -> void:
 	rng.randomize()
@@ -196,6 +207,7 @@ func _process_local(delta: float) -> void:
 	_update_headbob(delta)
 	_update_sprint_fov(delta)
 	_update_ads(delta)
+	_update_damage_feedback(delta)
 
 	if dead:
 		velocity = Vector3.ZERO
@@ -276,6 +288,20 @@ func _update_sprint_fov(delta: float) -> void:
 	var sprinting: bool = is_on_floor() and speed > 0.1 and Input.is_action_pressed("sprint")
 	var target_fov: float = camera_base_fov + (sprint_fov_boost if sprinting else 0.0)
 	camera.fov = lerp(camera.fov, target_fov, min(1.0, delta * sprint_fov_smooth))
+
+func _update_damage_feedback(delta: float) -> void:
+	if not is_multiplayer_authority():
+		return
+	if damage_overlay_intensity > 0.0:
+		damage_overlay_intensity = max(0.0, damage_overlay_intensity - damage_overlay_fade * delta)
+		_apply_low_health_overlay()
+	if damage_arrow_intensity > 0.0:
+		damage_arrow_intensity = max(0.0, damage_arrow_intensity - damage_arrow_fade * delta)
+		_set_damage_arrow_intensity(damage_arrow_intensity)
+		_update_damage_arrow()
+	else:
+		if damage_arrow:
+			damage_arrow.visible = false
 
 func _update_weapon_bob(delta: float, intensity: float, moving: bool) -> void:
 	if weapon == null:
@@ -413,7 +439,8 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 	var distance: float = origin.distance_to(result.position)
 	var damage := _compute_damage(distance)
 	if collider.has_method("apply_damage"):
-		collider.apply_damage(damage, shooter_id)
+		var source_pos: Vector3 = global_transform.origin
+		collider.apply_damage(damage, shooter_id, false, source_pos)
 		if shooter_id == multiplayer.get_unique_id():
 			_show_hit_marker()
 		elif shooter_id != 0:
@@ -431,7 +458,7 @@ func _compute_damage(distance: float) -> float:
 	var t := (distance - falloff_start) / (falloff_end - falloff_start)
 	return lerp(base_damage, min_damage, t)
 
-func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false) -> void:
+func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false, source_pos: Vector3 = Vector3.ZERO) -> void:
 	if not multiplayer.is_server():
 		return
 	if dead:
@@ -441,6 +468,7 @@ func apply_damage(amount: float, _from_peer_id: int = 0, headshot: bool = false)
 	last_hit_was_headshot = headshot
 	health = max(health - int(round(amount)), 0)
 	_sync_health_to_owner()
+	_send_damage_indicator(source_pos)
 	if health <= 0:
 		dead = true
 		rpc("set_dead", true)
@@ -452,6 +480,51 @@ func _sync_health_to_owner() -> void:
 		_set_local_health(health)
 	else:
 		rpc_id(owner_id, "client_set_health", health)
+
+func _send_damage_indicator(source_pos: Vector3) -> void:
+	var owner_id := get_multiplayer_authority()
+	if owner_id == multiplayer.get_unique_id():
+		_show_damage_indicator(source_pos)
+	else:
+		rpc_id(owner_id, "client_show_damage_indicator", source_pos)
+
+@rpc("any_peer", "reliable", "call_local")
+func client_show_damage_indicator(source_pos: Vector3) -> void:
+	_show_damage_indicator(source_pos)
+
+func _show_damage_indicator(source_pos: Vector3) -> void:
+	if not is_multiplayer_authority():
+		return
+	last_damage_source_pos = source_pos
+	damage_overlay_intensity = 1.0
+	damage_arrow_intensity = 1.0
+	_apply_low_health_overlay()
+	_set_damage_arrow_intensity(damage_arrow_intensity)
+	_update_damage_arrow()
+
+func _update_damage_arrow() -> void:
+	if damage_arrow_pivot == null or damage_arrow == null:
+		return
+	var to_source := last_damage_source_pos - global_transform.origin
+	to_source.y = 0.0
+	if to_source.length() <= 0.01:
+		damage_arrow.visible = false
+		return
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var right := global_transform.basis.x
+	right.y = 0.0
+	right = right.normalized()
+	var angle := atan2(to_source.dot(right), to_source.dot(forward))
+	damage_arrow_pivot.rotation = angle
+	damage_arrow.visible = true
+
+func _set_damage_arrow_intensity(value: float) -> void:
+	if damage_arrow:
+		var mat_arrow := damage_arrow.material
+		if mat_arrow is ShaderMaterial:
+			(mat_arrow as ShaderMaterial).set_shader_parameter("intensity", value)
 
 @rpc("any_peer", "reliable")
 func client_set_health(value: int) -> void:
@@ -497,11 +570,38 @@ func respawn_at(spawn_transform: Transform3D, new_health: int) -> void:
 		recoil_pitch = 0.0
 		recoil_yaw = 0.0
 		_set_local_health(health)
+		damage_overlay_intensity = 0.0
+		damage_arrow_intensity = 0.0
+		_set_damage_arrow_intensity(0.0)
+		_apply_low_health_overlay()
 
 func _set_local_health(value: int) -> void:
 	var label: Label = get_node_or_null("/root/Main/HUD/HealthLabel") as Label
 	if label:
 		label.text = "HP: %d" % value
+	_update_low_health_overlay(value)
+
+func _update_low_health_overlay(value: int) -> void:
+	if low_health_overlay == null:
+		return
+	var ratio: float = 0.0
+	if max_health > 0:
+		ratio = float(value) / float(max_health)
+	var intensity := 0.0
+	if ratio < low_health_start_ratio:
+		intensity = (low_health_start_ratio - ratio) / max(low_health_start_ratio, 0.01)
+	low_health_intensity = clamp(intensity * low_health_max_intensity, 0.0, 1.0)
+	_apply_low_health_overlay()
+
+func _apply_low_health_overlay() -> void:
+	if low_health_overlay == null:
+		return
+	var mat := low_health_overlay.material
+	if mat is ShaderMaterial:
+		(mat as ShaderMaterial).set_shader_parameter(
+			"intensity",
+			max(low_health_intensity, damage_overlay_intensity)
+		)
 
 func _apply_skins() -> void:
 	_apply_character_skin()

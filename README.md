@@ -62,7 +62,9 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-   
+
+- Animation de mort quand on tue quelqu'un ou qu'on se fait tuer
+
 - Quand on fait option, un menu s'ouvre et on peut changer son skin.
 - Ajouter 2 autres armes, on peut changer d'arme en appuyant sur la touche E
 
