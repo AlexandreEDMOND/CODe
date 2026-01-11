@@ -1,10 +1,11 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource path="res://scripts/Main.gd" type="Script" id=1]
 [ext_resource path="res://scenes/Map.tscn" type="PackedScene" id=2]
 [ext_resource path="res://shaders/low_health_overlay.gdshader" type="Shader" id=3]
 [ext_resource path="res://shaders/damage_ring.gdshader" type="Shader" id=4]
 [ext_resource path="res://shaders/damage_arrow.gdshader" type="Shader" id=5]
+[ext_resource path="res://scripts/Minimap.gd" type="Script" id=9]
 
 [sub_resource type="ShaderMaterial" id=6]
 shader = ExtResource(3)
@@ -37,19 +38,19 @@ script = ExtResource(1)
 position = Vector3(0, 1, 0)
 
 [node name="Spawn2" type="Marker3D" parent="SpawnPoints"]
-position = Vector3(10, 1, 0)
+position = Vector3(40, 1, 0)
 
 [node name="Spawn3" type="Marker3D" parent="SpawnPoints"]
-position = Vector3(-10, 1, 0)
+position = Vector3(-40, 1, 0)
 
 [node name="Spawn4" type="Marker3D" parent="SpawnPoints"]
-position = Vector3(0, 1, 10)
+position = Vector3(0, 1, 40)
 
 [node name="Spawn5" type="Marker3D" parent="SpawnPoints"]
-position = Vector3(0, 1, -10)
+position = Vector3(0, 1, -40)
 
 [node name="Spawn6" type="Marker3D" parent="SpawnPoints"]
-position = Vector3(12, 1, 12)
+position = Vector3(35, 1, 35)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
@@ -97,6 +98,18 @@ offset_left = -8.0
 offset_top = -70.0
 offset_right = 8.0
 offset_bottom = -50.0
+
+[node name="Minimap" type="Control" parent="HUD"]
+script = ExtResource(9)
+mouse_filter = 2
+anchor_left = 1.0
+anchor_top = 0.0
+anchor_right = 1.0
+anchor_bottom = 0.0
+offset_left = -210.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 210.0
 
 [node name="InfoLabel" type="Label" parent="HUD"]
 position = Vector2(10, 10)

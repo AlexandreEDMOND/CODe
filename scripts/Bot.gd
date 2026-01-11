@@ -159,12 +159,18 @@ func _update_shooting(delta: float) -> void:
 	var target_pos := _get_target_position(target)
 	if not _has_line_of_sight(target_pos):
 		return
+	_notify_shot_event()
 	if shoot_body_only:
 		var torso_hitbox: Area3D = target.get_node_or_null("TorsoHitbox") as Area3D
 		if torso_hitbox and torso_hitbox.has_method("apply_damage"):
 			torso_hitbox.apply_damage(shoot_damage, 0, false, global_transform.origin)
 			return
 	target.apply_damage(shoot_damage, 0, false, global_transform.origin)
+
+func _notify_shot_event() -> void:
+	var main: Node = get_node_or_null("/root/Main")
+	if main and main.has_method("register_shot"):
+		main.register_shot(name, global_transform.origin)
 
 func _get_target_position(target: Node) -> Vector3:
 	var torso_hitbox: Area3D = target.get_node_or_null("TorsoHitbox") as Area3D

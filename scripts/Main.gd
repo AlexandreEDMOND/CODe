@@ -30,6 +30,7 @@ extends Node3D
 @onready var preview_camera := $HUD/PauseMenu/Panel/MenuHBox/RightVBox/PreviewViewportContainer/PreviewViewport/PreviewRoot/PreviewCamera
 @onready var scoreboard_panel := $HUD/Scoreboard
 @onready var scoreboard_label := $HUD/Scoreboard/ScoreboardLabel
+@onready var minimap = $HUD/Minimap
 
 var player_scene := preload("res://scenes/Player.tscn")
 var bot_scene := preload("res://scenes/Bot.tscn")
@@ -284,6 +285,20 @@ func _set_scoreboard_visible(value: bool) -> void:
 		scoreboard_panel.visible = value
 	if value:
 		_update_scoreboard()
+
+func register_shot(shooter_name: String, position: Vector3) -> void:
+	if multiplayer.is_server():
+		rpc("client_register_shot", shooter_name, position)
+	else:
+		_register_shot_local(shooter_name, position)
+
+@rpc("any_peer", "unreliable", "call_local")
+func client_register_shot(shooter_name: String, position: Vector3) -> void:
+	_register_shot_local(shooter_name, position)
+
+func _register_shot_local(shooter_name: String, position: Vector3) -> void:
+	if minimap:
+		minimap.call("register_shot", shooter_name, position)
 
 func _ensure_player_stats(peer_id: int) -> void:
 	if not player_stats.has(peer_id):

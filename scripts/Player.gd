@@ -470,6 +470,8 @@ func server_fire(origin: Vector3, direction: Vector3, tracer_origin: Vector3) ->
 		_broadcast_tracer(tracer_origin, end_pos, shooter_id)
 
 func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
+	if multiplayer.is_server():
+		_notify_shot_event(shooter_id, origin)
 	var space: PhysicsDirectSpaceState3D = get_world_3d().direct_space_state
 	var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(
 		origin,
@@ -504,6 +506,12 @@ func _do_fire(origin: Vector3, direction: Vector3, shooter_id: int) -> Vector3:
 		_spawn_impact_local(result.position, hit_normal)
 		_broadcast_impact(result.position, hit_normal, shooter_id)
 	return end_pos
+
+func _notify_shot_event(shooter_id: int, origin: Vector3) -> void:
+	var main: Node = get_node_or_null("/root/Main")
+	if main and main.has_method("register_shot"):
+		var shooter_name := "Player_%d" % shooter_id
+		main.register_shot(shooter_name, origin)
 
 func _compute_damage(distance: float) -> float:
 	if distance <= falloff_start:

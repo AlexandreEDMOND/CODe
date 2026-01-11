@@ -62,8 +62,6 @@ Ces valeurs sont exposees dans le script `scripts/Player.gd` et controlent le fe
 
 Gameplay :
 
-- Map plus grande avec des structure plus nombreuses et plus complexes, rajoute une mini map en haut le point du joueurs et des autres joueurs uniquemment quand ils tirent. La mini map est ronde et bouge en fonction des deplacement du joueurs et de la camera.
-
 - Reduire degats arme principale
 
 - Avoir une option pour lancer en mode debug avec les 3 bots sans arme et celui avec arme, ou en mode normal où il n'y a pas de bot, et où les joueurs peuvent s'affronter
@@ -80,3 +78,4 @@ Gameplay :
 
 Design :
 - Voir le nouveau dossier building et voir si on peut créer quelque chose de simple à la bonne echelle avec.
+- Voir si on peut pas utiliser animated-characters pour avoir quelque chose de plus réaliste
